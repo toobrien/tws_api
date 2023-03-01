@@ -23,7 +23,8 @@ DEFAULT_DATA_TYPE = 4
 
 # maximum concurrent data lines
 
-MAX_DATA_LINES = 50
+MAX_DATA_LINES  = 50
+MAX_DEPTH_LINES = 50 # not sure what this should be?
 
 NOT_FOUND = 0
 
@@ -200,7 +201,9 @@ class fclient(wrapper, EClient):
         # concurrency
         
         self.open_data_lines    = 0
+        self.open_depth_lines   = 0
         self.market_data_queue  = []
+        self.market_depth_queue = []
         self.loop               = new_event_loop()
         self.last_exec          = -1
 
@@ -244,8 +247,6 @@ class fclient(wrapper, EClient):
                 kwargs
             )
 
-            # super().reqMktData(**kwargs)
-
             self.open_data_lines += 1
         
         else:
@@ -253,6 +254,21 @@ class fclient(wrapper, EClient):
             self.market_data_queue.append(kwargs)
 
         return self.reqId
+
+
+    def reqMktDepth(self, kwargs):
+
+        self.reqId      += 1
+        kwargs["reqId"] =  self.reqId
+
+        if self.open_depth_lines <= MAX_DEPTH_LINES:
+
+            self.schedule(
+                super().reqMktDepth,
+                kwargs
+            )
+
+            self.open_depth_lines += 1
 
 
     def cancelMktData(self, kwargs):
@@ -276,6 +292,23 @@ class fclient(wrapper, EClient):
             )
 
 
+    def cancelMktDepth(self, kwargs):
+
+        self.schedule(
+            super().cancelMktDepth,
+            kwargs
+        )
+
+        self.open_depth_lines -= 1
+
+        if self.market_depth_queue:
+
+            self.schedule(
+                self.reqMktDepth,
+                self.market_depth_queue.pop()
+            )
+
+
     async def reqContractDetails(self, kwargs):
 
         self.reqId  += 1
@@ -289,26 +322,6 @@ class fclient(wrapper, EClient):
         )
 
         return await fut
-
-
-    ####################
-    ## ECLIENT PUBLIC ##
-    ####################
-
-
-    def set_market_data_type(self, type: int):
-
-        self.reqMarketDataType(type)   
-
-
-    def set_l1_stream_handler(self, handler):
-
-        self.handlers["l1_stream"] = handler
-
-
-    def set_l2_stream_handler(self, handler):
-
-        self.handlers["l2_stream"] = handler
 
 
     def get_contract(self, instr: instrument):
@@ -425,10 +438,9 @@ class fclient(wrapper, EClient):
         return res
 
 
-    def open_l1_stream(self, instrument_id: tuple):
+    def check_contract(self, instrument_id: tuple):
 
-        con     = None
-        handle  = None
+        con = None
 
         if instrument_id not in self.instrument_store:
 
@@ -441,6 +453,34 @@ class fclient(wrapper, EClient):
                 instr.contract                          = con
                 self.instrument_store[instrument_id]    = instr
 
+        return con
+
+
+    ####################
+    ## ECLIENT PUBLIC ##
+    ####################
+
+
+    def set_market_data_type(self, type: int):
+
+        self.reqMarketDataType(type)   
+
+
+    def set_l1_stream_handler(self, handler):
+
+        self.handlers["l1_stream"] = handler
+
+
+    def set_l2_stream_handler(self, handler):
+
+        self.handlers["l2_stream"] = handler
+
+
+    def open_l1_stream(self, instrument_id: tuple):
+
+        handle  = None
+        con     = self.check_contract(instrument_id)
+        
         if con:
         
             handle = self.reqMktData(
@@ -461,12 +501,32 @@ class fclient(wrapper, EClient):
         self.cancelMktData({ "reqId": reqId })
 
 
-    def open_l2_stream(self, contract: Contract):
+    def open_l2_stream(
+        self,
+        instrument_id:  tuple,
+        num_rows:       int
+    ):
 
-        pass
+        handle  = None
+        con     = self.check_contract(instrument_id)
+
+        if con:
+
+            handle = self.reqMktDepth(
+                        {
+                            "contract":         con,
+                            "numRows":          num_rows,
+                            "isSmartDepth":     True,       # ???
+                            "mktDepthOptions":  []
+                        }
+                    )
+
+        return handle
 
 
     def close_l2_stream(self, reqId: int):
+
+        # ...
 
         pass
 
