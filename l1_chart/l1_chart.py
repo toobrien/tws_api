@@ -4,7 +4,6 @@ path.append("..")
 
 from ib_futures.fclient import fclient
 from json               import loads
-from ib_futures.structs import instrument
 from time               import sleep
 from instruments        import INSTRUMENTS
 
