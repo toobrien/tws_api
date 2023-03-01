@@ -192,9 +192,10 @@ class fclient(wrapper, EClient):
         self.results    = {}
         self.handlers   = {}
 
-        # contract store
+        # stores
 
-        self.contract_store = {}
+        self.instrument_store   = {}
+        self.contract_store     = {}
 
         # concurrency
         
@@ -424,17 +425,33 @@ class fclient(wrapper, EClient):
         return res
 
 
-    def open_l1_stream(self, contract: Contract):
+    def open_l1_stream(self, instrument_id: tuple):
+
+        con     = None
+        handle  = None
+
+        if instrument_id not in self.instrument_store:
+
+            instr = instrument(instrument_id)
+
+            con = self.get_contract(instr)
+
+            if con:
+
+                instr.contract                          = con
+                self.instrument_store[instrument_id]    = instr
+
+        if con:
         
-        handle = self.reqMktData(
-                    {
-                        "contract":             contract,
-                        "genericTickList":      "",
-                        "snapshot":             False,
-                        "regulatorySnapshot":   False,
-                        "mktDataOptions":       []
-                    }
-                )
+            handle = self.reqMktData(
+                        {
+                            "contract":             con,
+                            "genericTickList":      "",
+                            "snapshot":             False,
+                            "regulatorySnapshot":   False,
+                            "mktDataOptions":       []
+                        }
+                    )
 
         return handle
 
