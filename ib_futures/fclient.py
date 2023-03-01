@@ -149,6 +149,64 @@ class wrapper(EWrapper):
         )
 
 
+    def updateMktDepth(
+        self,
+        reqId,
+        position,
+        operation,
+        side,
+        price,
+        size
+    ):
+
+        super().updateMktDepth(reqId, position, operation, side, price, size)
+
+        self.handlers["l2_stream"](
+            {
+                "reqId":        reqId,
+                "position":     position,
+                "operation":    operation,
+                "side":         side,
+                "price":        price,
+                "size":         size
+            }
+        )
+
+    # not sure what is different between this and updateMktDepth
+
+    def updateMkDepthL2(
+        self,
+        reqId,
+        position,
+        marketMaker,
+        operation,
+        side,
+        price,
+        size,
+        isSmartDepth
+    ):
+
+        super().updateMktDepthL2(
+            reqId,
+            position,
+            operation, 
+            side, 
+            price, 
+            size, 
+            isSmartDepth
+        )
+
+        self.handlers["l2_stream"](
+            reqId,
+            position,
+            operation,
+            side,
+            price,
+            size,
+            isSmartDepth
+        )
+
+
     def check_mkt_data_finished(self, reqId, params, field):
 
         if field in params["fields"]: 
@@ -269,6 +327,12 @@ class fclient(wrapper, EClient):
             )
 
             self.open_depth_lines += 1
+
+        else:
+
+            self.market_depth_queue.append(kwargs)
+        
+        return self.reqId
 
 
     def cancelMktData(self, kwargs):
@@ -516,7 +580,7 @@ class fclient(wrapper, EClient):
                         {
                             "contract":         con,
                             "numRows":          num_rows,
-                            "isSmartDepth":     True,       # ???
+                            "isSmartDepth":     False,       # ???
                             "mktDepthOptions":  []
                         }
                     )
