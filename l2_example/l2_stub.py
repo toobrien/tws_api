@@ -17,7 +17,7 @@ def l2_stream_handler(args):
     handle          = args["reqId"]
     instrument_id   = L2_HANDLES[handle]
     
-    pass
+    print(instrument_id, args)
 
 
 if __name__ == "__main__":
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     for instrument_id in INSTRUMENTS:
 
-        handle = fc.open_l1_stream(instrument_id)
+        handle = fc.open_l2_stream(instrument_id, 10)
 
         L2_HANDLES[handle] = instrument_id
 
