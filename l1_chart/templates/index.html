@@ -8,118 +8,18 @@
         <div id = "chart_display"></div>
     </body>
     <script src = "https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script src = "./index.js"></script>
     <script>
-
-        import { createChart } from 'lightweight-charts';
 
         const hostname              = "{{ hostname }}";
         const port                  = "{{ port }}";
-        const update_ms             = "{{ update_ms }}";
-        const cull_samples          = "{{ cull_samples }}";
-        const chart_width           = "{{ chart_width }}";
-        const chart_height          = "{{ chart_height }}";
-        const handle_to_chart_data  = {};
-        const server_url            = `http://${server}:${port}`;
+        const update_ms             = parseInt("{{ update_ms }}");
+        const max_samples           = parseInt("{{ max_samples }}");
+        const cull_samples          = parseInt("{{ cull_samples }}");
+        const chart_width           = parseInt("{{ chart_width }}");
+        const chart_height          = parseInt("{{ chart_height }}");
 
-        let res = await fetch(`${server_url}/get_instruments`);
-        res     = await res.json();
-
-        const chart_display = document.getElementById("chart_display")
-        
-        for (const [ instrument, handle ] in instruments.entries()) {
-
-            const chart_container = document.create_element("div");
-
-            chart_container.id = `chart_${handle}_container`;
-
-            const chart = createChart(chart_container);
-
-            chart.applyOptions(
-                {
-                    "width":        chart_width,
-                    "height":       chart_height,
-                    "watermark":    instrument
-                }
-            )
-
-            chart_display.appendChild(chart_container);
-
-            const bid_series_opts = {
-                color:      "#FFFFFF",
-                lineStyle:  LineStyle.dashed,
-                width:      1
-            };
-
-            const ask_series_opts = {
-                color:      "#FFFFFF",
-                lineStyle:  LineStyle.dashed,
-                width:      1
-            };
-
-            const last_series_opts = {
-                color:      "#0000FF", 
-                lineStyle:  LineStyle.SparseDotted,
-                width:      1
-            }
-
-            const bid_series    = chart.addLineSeries(bid_series_opts);
-            const ask_series    = chart.addLineSeries(ask_series_opts);
-            const last_series   = chart.addLineSeries(last_series_opts);
-
-            chart.set_data(bid_series);
-            chart.set_data(ask_series);
-            chart.set_data(last_series);
-
-            handle_to_chart_data[handle] = {
-                "chart_obj":    chart,
-                "bid_series":   bid_series,
-                "ask_series":   ask_series,
-                "last_series":  last_series,
-                "bid_data":     [],
-                "ask_data":     [],
-                "last_data":    []
-            };
-
-        }
-
-        async function update_charts() {
-
-            let res = await fetch(`${server_url}/get_quotes`);
-            res     = await res.json();
-
-            const ts = Date.now();
-
-            for (const [ handle, quote_data ] in res) {
-
-                const chart_data = handle_to_chart_data[handle];
-
-                let bid_series  = chart_data["bid_series"];
-                let ask_series  = chart_data["ask_series"];
-                let last_series = chart_data["last_series"];
-
-                if (chart_data["bid_series"].length > max_samples) {
-
-                    const chart = chart_data["chart_obj"];
-
-                    chart_data["bid_series"]    = bid_series.slice(cull_samples, bid_series.length);
-                    chart_data["ask_series"]    = ask_series.slice(cull_samples, ask_series.length);
-                    chart_data["last_series"]   = last_series.slice(cull_samples, last_series.length);
-
-                    chart.set_data(bid_series);
-                    chart.set_data(ask_series);
-                    chart.set_data(last_series);
-
-                }
-
-                bid_series.update({ time: ts, value: quote_data["BID"] });
-                ask_series.update({ time: ts, value: quote_data["ASK"] });
-                last_series.update({ time: ts, value: quote_data["LAST"] });
-
-            }
-
-        }
-
-        setInterval(update_charts, update_ms);
+        main();
 
     </script>
 </html>

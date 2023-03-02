@@ -25,16 +25,18 @@ def get_instruments():
 
     res = {
         str(instrument_id): handle
-        for handle, instrument_id in L1_HANDLES
+        for handle, instrument_id in L1_HANDLES.items()
     }
 
-    return Response(res)
+    return Response(dumps(res))
 
 
 @APP.route("/get_quotes", methods = [ "GET" ])
 def get_quotes():
 
-    return Response(dumps(QUOTES))
+    res = QUOTES
+
+    return Response(dumps(res))
 
 
 @APP.route("/")
@@ -69,19 +71,21 @@ def l1_stream_handler(args):
     print(out)
     '''
 
+    tick_type = args["tickType"]
+
     quote = QUOTES[handle]
 
-    if "BID" in args:
+    if tick_type == "BID":
 
-        quote["BID"] = args["BID"]
+        quote["BID"] = args["price"]
     
-    elif "ASK" in args:
+    elif tick_type == "ASK":
 
-        quote["ASK"] = args["ASK"]
+        quote["ASK"] = args["price"]
 
-    elif "LAST" in args:
+    elif tick_type == "LAST":
 
-        quote["LAST"] = args["LAST"]
+        quote["LAST"] = args["price"]
     
     pass
 
@@ -107,7 +111,6 @@ if __name__ == "__main__":
             L1_HANDLES[handle]  = instrument_id
             QUOTES[handle]      = {
                 "BID":  None,
-                "MID":  None,
                 "ASK":  None,
                 "LAST": None
             }
@@ -118,4 +121,3 @@ if __name__ == "__main__":
         host = APP_CONFIG["hostname"],
         port = APP_CONFIG["port"]
     )
-
