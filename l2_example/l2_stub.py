@@ -4,11 +4,10 @@ path.append("..")
 
 from ib_futures.fclient import fclient
 from json               import loads
-from time               import sleep
 from instruments        import INSTRUMENTS
 
 
-CONFIG      = loads(open("../config.json", "r").read())
+TWS_CONFIG  = loads(open("../tws_config.json", "r").read())
 L2_HANDLES  = {}
 
 
@@ -23,9 +22,9 @@ def l2_stream_handler(args):
 if __name__ == "__main__":
 
     fc = fclient(
-        host    = CONFIG["host"],
-        port    = CONFIG["port"],
-        id      = CONFIG["client_id"]
+        host    = TWS_CONFIG["host"],
+        port    = TWS_CONFIG["port"],
+        id      = TWS_CONFIG["client_id"]
     )
 
     # fc.set_market_data_type(4) // for frozen data when market is closed

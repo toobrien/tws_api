@@ -14,13 +14,6 @@ from time           import sleep
 
 SLEEP = 0.02
 
-# 1 = ???
-# 2 = ???
-# 3 = delayed, frozen
-# 4 = ???
-
-DEFAULT_DATA_TYPE = 4
-
 # maximum concurrent data lines
 
 MAX_DATA_LINES  = 50
@@ -388,15 +381,17 @@ class fclient(wrapper, EClient):
         return await fut
 
 
-    def get_contract(self, instr: instrument):
-        
-        if instr.symbol not in self.contract_store:
+    def update_contract_store(self, symbol:str, exchange: str):
+
+        symbols = symbol.split(".")
+
+        for symbol in symbols:
 
             con = Contract()
 
-            con.symbol      = instr.symbol
+            con.symbol      = symbol
             con.secType     = "FUT"
-            con.exchange    = instr.exchange
+            con.exchange    = exchange
             con.currency    = "USD"
 
             contracts = self.loop.run_until_complete(
@@ -410,15 +405,25 @@ class fclient(wrapper, EClient):
             for contract_details in contracts:
 
                 con_month   = contract_details.contractMonth
-                contract_id = month_codes[int(con_month[-2:])] + con_month[2:4]
+
+                # contract_id format is like "HOJ23"
+
+                contract_id = f"{symbol}{month_codes[int(con_month[-2:])]}{con_month[2:4]}"
 
                 self.contract_store[contract_id] = contract_details
 
+
+    def get_contract(self, instr: instrument):
+        
+        if instr.symbol not in self.contract_store:
+
+            self.update_contract_store(instr.symbol, instr.exchange)
+            
         res = None
 
         if instr.type == "single":
 
-            contract_id = instr.legs[0]
+            contract_id = f"{instr.symbol}{instr.legs[0]}"
 
             try:
                 
@@ -434,15 +439,28 @@ class fclient(wrapper, EClient):
 
             try:
 
-                comboLegs = []
+                symbols     = instr.symbol.split(".")
+                legs        = instr.legs
+                comboLegs   = []
 
-                for leg in instr.legs:
+                for i in range(len(legs)):
 
-                    if instr.type == "custom":
+                    leg = instr.legs[i]
+
+                    if instr.type in [ "custom", "inter" ]:
 
                         leg = leg.split(":")[1]
 
-                    contract_details = self.contract_store[leg]
+                    if instr.type == "inter":
+
+                        # list legs for intercommodity spread in the same order as
+                        # they appear in the symbol name
+
+                        contract_details = self.contract_store[f"{symbols[i]}{leg}"]
+                    
+                    else:
+
+                        contract_details = self.contract_store[f"{symbols[0]}{leg}"]
 
                     cl = ComboLeg()
 
@@ -472,7 +490,7 @@ class fclient(wrapper, EClient):
                     comboLegs[2].ratio  = 1
                     comboLegs[2].action = "BUY"
 
-                elif instr.type == "custom":
+                elif instr.type in [ "custom", "inter" ]:
 
                     for i in range(len(instr.legs)):
 
