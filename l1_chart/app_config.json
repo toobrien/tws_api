@@ -5,5 +5,6 @@
     "max_samples":  20000,
     "cull_samples": 360,
     "chart_width":  1000,
-    "chart_height": 400
+    "chart_height": 400,
+    "utc_offset":   -8
 }

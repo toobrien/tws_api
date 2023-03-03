@@ -100,7 +100,7 @@ async function main() {
         let res = await fetch(`${server_url}/get_quotes`);
         res     = await res.json();
     
-        const ts = Math.floor(Date.now() / 1000);
+        const ts = Math.floor(Date.now() / 1000) + utc_offset;
     
         for (const [ handle, quote_data ] of Object.entries(res)) {
     

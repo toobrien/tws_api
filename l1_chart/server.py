@@ -50,7 +50,8 @@ def get_root():
                 max_samples     = APP_CONFIG["max_samples"],
                 cull_samples    = APP_CONFIG["cull_samples"],
                 chart_width     = APP_CONFIG["chart_width"],
-                chart_height    = APP_CONFIG["chart_height"]
+                chart_height    = APP_CONFIG["chart_height"],
+                utc_offset      = APP_CONFIG["utc_offset"] * 3600
             )
 
 def l1_stream_handler(args):
