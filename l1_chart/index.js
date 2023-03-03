@@ -19,6 +19,18 @@ async function main() {
     
         const chart = lwc.createChart(chart_container);
     
+        let friendly_name_parts = instrument.substring(1, instrument.length - 1).replaceAll("'", "").split(", ");
+        let symbol              = friendly_name_parts[0];
+        let year                = friendly_name_parts[3].substring(1);
+        let type                = friendly_name_parts[2];
+        let months              = "";
+
+        for (let i = 3; i < friendly_name_parts.length; i++)
+
+            months += friendly_name_parts[i][0];
+
+        friendly_name = `${symbol} ${type} ${months} ${year}`;
+
         chart.applyOptions(
             {
                 width:        chart_width,
@@ -29,7 +41,7 @@ async function main() {
                     horzAlign:  "left",
                     vertAlign:  "top",
                     color:      "rgba(88, 88, 88, 0.5)",
-                    text:       instrument
+                    text:       friendly_name
                 },
                 timeScale: {
                     timeVisible: true,
