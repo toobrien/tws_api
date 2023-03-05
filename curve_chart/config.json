@@ -1,0 +1,14 @@
+{
+    "hostname":     "localhost",
+    "port":         "8080",
+    "update_ms":    300,
+    "chart": {
+        "width": 1600,
+        "height": 800
+    },
+    "tws": {
+        "host":         "127.0.0.1",
+        "port":         7496,
+        "client_id":    0
+    }   
+}

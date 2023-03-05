@@ -1,0 +1,19 @@
+<html>
+    <body>
+        <div id = "view"></div>
+    </body>
+    <script src = "https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script src = "./index.js"></script>
+    <script>
+
+        const hostname              = "{{ hostname }}";
+        const port                  = "{{ port }}";
+        const mode                  = "{{ mode }}";
+        const update_ms             = parseInt("{{ update_ms }}");
+        const chart_width           = parseInt("{{ chart_width }}");
+        const chart_height          = parseInt("{{ chart_height }}");
+        
+        main();
+
+    </script>
+</html>

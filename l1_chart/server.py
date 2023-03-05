@@ -1,16 +1,11 @@
-from sys import path
-
-path.append("..")
-
-from flask              import Flask, render_template, Response
-from flask_cors         import CORS
-from ib_futures.fclient import fclient
-from json               import loads, dumps
-from instruments        import INSTRUMENTS
+from flask                  import Flask, render_template, Response
+from flask_cors             import CORS
+from ib_futures.fclient     import fclient
+from json                   import loads, dumps
+from l1_chart.instruments   import INSTRUMENTS
 
 
-APP_CONFIG  = loads(open("./app_config.json", "r").read())
-TWS_CONFIG  = loads(open("../tws_config.json", "r").read())
+CONFIG = loads(open("./config.json", "r").read())
 
 APP = Flask(__name__, static_folder = ".", static_url_path = "")
 APP.config["CACHE_TYPE"] = "null"
@@ -44,14 +39,14 @@ def get_root():
 
     return render_template(
                 "index.html",
-                hostname        = APP_CONFIG["hostname"],
-                port            = APP_CONFIG["port"],
-                update_ms       = APP_CONFIG["update_ms"],
-                max_samples     = APP_CONFIG["max_samples"],
-                cull_samples    = APP_CONFIG["cull_samples"],
-                chart_width     = APP_CONFIG["chart_width"],
-                chart_height    = APP_CONFIG["chart_height"],
-                utc_offset      = APP_CONFIG["utc_offset"] * 3600
+                hostname        = CONFIG["hostname"],
+                port            = CONFIG["port"],
+                update_ms       = CONFIG["update_ms"],
+                max_samples     = CONFIG["max_samples"],
+                cull_samples    = CONFIG["cull_samples"],
+                chart_width     = CONFIG["chart_width"],
+                chart_height    = CONFIG["chart_height"],
+                utc_offset      = CONFIG["utc_offset"] * 3600
             )
 
 def l1_stream_handler(args):
@@ -94,9 +89,9 @@ def l1_stream_handler(args):
 if __name__ == "__main__":
 
     fc = fclient(
-        host    = TWS_CONFIG["host"],
-        port    = TWS_CONFIG["port"],
-        id      = TWS_CONFIG["client_id"]
+        host    = CONFIG["tws"]["host"],
+        port    = CONFIG["tws"]["port"],
+        id      = CONFIG["tws"]["client_id"]
     )
 
     # fc.set_market_data_type(4) // for frozen data when market is closed
@@ -119,6 +114,6 @@ if __name__ == "__main__":
         #fc.close_l1_stream(handle)
 
     APP.run(
-        host = APP_CONFIG["hostname"],
-        port = APP_CONFIG["port"]
+        host = CONFIG["hostname"],
+        port = CONFIG["port"]
     )

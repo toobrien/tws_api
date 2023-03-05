@@ -613,6 +613,26 @@ class fclient(wrapper, EClient):
         pass
 
 
+    # add all contracts for a symbol and return each term's instrument id
+
+    def get_instrument_ids(self, symbol: str, exchange: str):
+
+        self.update_contract_store(symbol, exchange)
+
+        sym_len = len(symbol)
+        ids     = []
+
+        for contract_id, _ in self.contract_store.items():
+
+            if symbol in contract_id[:sym_len]:
+
+                ids.append(
+                    ( symbol, exchange, "single", contract_id[sym_len:])
+                )
+
+        return ids
+
+
     ###########################
     ## CONCURRENCY FUNCTIONS ##
     ###########################

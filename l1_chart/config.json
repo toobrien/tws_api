@@ -6,5 +6,10 @@
     "cull_samples": 360,
     "chart_width":  1000,
     "chart_height": 400,
-    "utc_offset":   -8
+    "utc_offset":   -8,
+    "tws": {
+        "host": "127.0.0.1",
+        "port": 7496,
+        "client_id": 0
+    }
 }
