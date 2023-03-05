@@ -9,10 +9,30 @@ async function main() {
     let res     = await fetch(`${server_url}/get_quotes`);
     let quotes  = await res.json();
     
-    const symbols   = [];
-    const charts    = {};
-    const series    = {};
-    const view      = document.getElementById("view");
+    const symbols       = [];
+    const charts        = {};
+    const series        = {};
+    const time_labels   = {};
+    const view          = document.getElementById("view");
+
+    let chart_opts = {
+        width:  chart_width,
+        height: chart_height,
+        watermark: {
+            visible:    true,
+            fontSize:   12,
+            horzAlign:  "left",
+            vertAlign:  "top",
+            color:      "rgba(88, 88, 88, 0.5)",
+            text:       null
+        },
+        timeScale: {
+            tickMarkFormatter: (time, tickMarkType, local) => time_labels[time]
+        },
+        localization: {
+            timeFormatter: (time, tickMarkType, local) => time_labels[time]
+        }
+    };
 
     for (var [ term_id, quote ] of Object.keys(quotes)) {
 
@@ -31,21 +51,10 @@ async function main() {
 
             chart           = lwc.createChart(chart_container);
             charts[symbol]  = chart;
+            
+            chart_opts.watermark.text = symbol;
 
-            chart.applyOptions(
-                {
-                    width:  chart_width,
-                    height: chart_height,
-                    watermark: {
-                        visible:    true,
-                        fontSize:   12,
-                        horzAlign:  "left",
-                        vertAlign:  "top",
-                        color:      "rgba(88, 88, 88, 0.5)",
-                        text:       symbol
-                    }
-                }
-            );
+            chart.applyOptions(chart_opts);
 
         }
 
@@ -147,6 +156,14 @@ async function main() {
             series[term_id][high_bid_series].update({ time: term_id, open: high_bid, high: high_bid, low: high_bid, close: high_bid });
             series[term_id][low_ask_series].update({ time: term_id, open: low_ask, high: low_ask, low: low_ask, close: low_ask });
         
+            // necessary to keep x-axis labelled properly, for some reason...
+
+            const symbol = term_id.split(":")[0];
+
+            chart_opts.watermark.text = symbol;
+
+            chart.applyOptions(chart_opts);
+            chart.timeScale().fitContent();
         }
 
     }
