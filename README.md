@@ -17,3 +17,9 @@ Where `type` is one of:
 For `single` and the other standard spreads, the legs are `MYY` format, e.g. J23 for April, 2023.
 
 For `custom` and `inter`, the legs also require side and ratio, separated by a colon from the standard leg representation,  e.g.: `+1:J23` or `-2:K24` and so on.
+
+I intend to implement public functions for:
+
+- L1 streaming data (complete)
+- L2 data (partially complete)
+- Limit and market order management (not started)
