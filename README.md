@@ -4,7 +4,7 @@ A basic implementation of the TWS client for futures and futures strategies.
 
 Requests to `fclient` public methods generally involve instrument IDs, which are tuples in the format:
 
-( <symbol>, <exchange>, <type>, <leg0>, ..., <legN> )
+( `symbol`, `exchange`, `type`, `leg0`, ..., `legN` )
 
 Where `type` is one of:
 
