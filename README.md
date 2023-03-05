@@ -8,11 +8,11 @@ Requests to `fclient` public methods generally involve instrument IDs, which are
 
 Where `type` is one of:
 
-- single: a single contract
-- rcal:   reverse calendar (+1, -1)
-- fly:    butterfly        (+1, -2, +1)
-- custom: arbitrary spread
-- inter:  intercommodity spread
+- `single`: a single contract
+- `rcal`:   reverse calendar (+1, -1)
+- `fly`:    butterfly        (+1, -2, +1)
+- `custom`: arbitrary spread
+- `inter`:  intercommodity spread
 
 For `single` and the other standard spreads, the legs are `MYY` format, e.g. J23 for April, 2023.
 
