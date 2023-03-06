@@ -70,39 +70,31 @@ def diff_handler(args):
 
     quote = HANDLES_TO_QUOTES[handle]
 
-    if not quote["INITIALIZED"]:
-
-        if tick_type == "BID" and not quote["INIT_BID"]:
-
-            quote["INIT_BID"]       = args["price"]
+    if not quote["INIT_PRICE"]:
             
-        elif tick_type == "ASK" and not quote["INIT_ASK"]:
+        if tick_type == "LAST" and not quote["INIT_PRICE"]:
 
-            quote["INIT_ASK"]       = args["price"]
-            
-        elif tick_type == "LAST" and not quote["INIT_LAST"]:
+            quote["INIT_PRICE"] = args["price"]
 
-            quote["INIT_LAST"]      = args["price"]
+        else:
 
-        if quote["INIT_BID"] and quote["INIT_ASK"] and quote["INIT_LAST"]:
-
-            quote["INITIALIZED"]    = True
+            return
 
     else:
 
         if tick_type == "BID":
 
-            quote["BID"]        = args["price"] - quote["INIT_BID"]
+            quote["BID"]        = args["price"] - quote["INIT_PRICE"]
             quote["HIGH_BID"]   = max(quote["HIGH_BID"], quote["BID"])
 
         elif tick_type == "ASK":
 
-            quote["ASK"]        = args["price"] - quote["INIT_ASK"]
+            quote["ASK"]        = args["price"] - quote["INIT_PRICE"]
             quote["LOW_ASK"]    = min(quote["LOW_ASK"], quote["ASK"])
 
         elif tick_type == "LAST":
 
-            quote["LAST"]       = args["price"] - quote["INIT_LAST"]
+            quote["LAST"]       = args["price"] - quote["INIT_PRICE"]
 
     pass
 
@@ -165,10 +157,7 @@ if __name__ == "__main__":
 
                 if MODE == "diff":
 
-                    HANDLES_TO_QUOTES[handle]["INITIALIZED"]    = False
-                    HANDLES_TO_QUOTES[handle]["INIT_BID"]       = None
-                    HANDLES_TO_QUOTES[handle]["INIT_ASK"]       = None
-                    HANDLES_TO_QUOTES[handle]["INIT_LAST"]      = None
+                    HANDLES_TO_QUOTES[handle]["INIT_PRICE"] = None
 
 
     APP.run(
