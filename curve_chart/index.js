@@ -18,10 +18,10 @@ async function main() {
     let chart_opts = {
         width:  chart_width,
         height: chart_height,
+        crosshair: {
+            mode: 0
+        },
         watermark: {
-            crosshair: {
-                mode: 0
-            },
             visible:    true,
             fontSize:   12,
             horzAlign:  "left",
@@ -61,6 +61,25 @@ async function main() {
 
             chart.applyOptions(chart_opts);
 
+            /*
+            const zero_series = chart.addLineSeries();
+
+            zero_series.createPriceLine(
+                {
+                    price: 0.0000,
+                    color: "#FF0000",
+                    lineWidth: 1,
+                    lineStyle: lwc.LineStyle.Dashed,
+                    lastValueVisible: false,
+                    priceFormat: {
+                        type:       "price",
+                        precision:  4,
+                        minMove:    0.0001
+                    }
+                }
+            );
+            */
+
         }
 
         chart = charts[symbol];
@@ -69,6 +88,7 @@ async function main() {
             upColor:            "#1984c5",
             downColor:          "#1984c5",
             priceLineVisible:   false,
+            lastValueVisible:   false,
             priceFormat: {
                 type:       "price",
                 precision:  4,
@@ -80,6 +100,7 @@ async function main() {
             upColor:            "#c23728",
             downColor:          "#c23728",
             priceLineVisible:   false,
+            lastValueVisible:   false,
             priceFormat: {
                 type:       "price",
                 precision:  4,
@@ -91,6 +112,7 @@ async function main() {
             upColor:            "#000000",
             downColor:          "#000000",
             priceLineVisible:   false,
+            lastValueVisible:   false,
             priceFormat: {
                 type:       "price",
                 precision:  4,
@@ -102,6 +124,7 @@ async function main() {
             upColor:            "#a7d5ed",
             downColor:          "#a7d5ed",
             priceLineVisible:   false,
+            lastValueVisible:   false,
             priceFormat: {
                 type:       "price",
                 precision:  4,
@@ -113,6 +136,7 @@ async function main() {
             upColor:            "#e1a692",
             downColor:          "#e1a692",
             priceLineVisible:   false,
+            lastValueVisible:   false,
             priceFormat: {
                 type:       "price",
                 precision:  4,
