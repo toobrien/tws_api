@@ -1,8 +1,11 @@
+from sys                import argv, path
+
+path.append("../")
+
 from flask              import Flask, render_template, Response
 from flask_cors         import CORS
 from ib_futures.fclient import fclient
 from json               import loads, dumps
-from sys                import argv
 
 
 CONFIG = loads(open("./config.json", "r").read())
@@ -33,8 +36,8 @@ def get_root():
                 port            = CONFIG["port"],
                 update_ms       = CONFIG["update_ms"],
                 mode            = MODE,
-                chart_width     = CONFIG["chart"]["chart_width"],
-                chart_height    = CONFIG["chart"]["chart_height"]
+                chart_width     = CONFIG["chart"]["width"],
+                chart_height    = CONFIG["chart"]["height"]
             )
 
 
@@ -72,16 +75,16 @@ def diff_handler(args):
         if tick_type == "BID" and not quote["INIT_BID"]:
 
             quote["INIT_BID"]       = args["price"]
-        
+            
         elif tick_type == "ASK" and not quote["INIT_ASK"]:
 
             quote["INIT_ASK"]       = args["price"]
-        
+            
         elif tick_type == "LAST" and not quote["INIT_LAST"]:
 
             quote["INIT_LAST"]      = args["price"]
 
-        else:
+        if quote["INIT_BID"] and quote["INIT_ASK"] and quote["INIT_LAST"]:
 
             quote["INITIALIZED"]    = True
 
@@ -90,16 +93,18 @@ def diff_handler(args):
         if tick_type == "BID":
 
             quote["BID"]        = args["price"] - quote["INIT_BID"]
-            quote["HIGH_BID"]   = max(quote["HIGH_BID", quote["BID"]])
+            quote["HIGH_BID"]   = max(quote["HIGH_BID"], quote["BID"])
 
         elif tick_type == "ASK":
 
-            quote["ASK"]        = args["price"] - quote["ASK"]
+            quote["ASK"]        = args["price"] - quote["INIT_ASK"]
             quote["LOW_ASK"]    = min(quote["LOW_ASK"], quote["ASK"])
 
         elif tick_type == "LAST":
 
-            quote["LAST"]       = args["price"] - quote["LAST"]
+            quote["LAST"]       = args["price"] - quote["INIT_LAST"]
+
+    pass
 
 
 if __name__ == "__main__":
@@ -146,15 +151,15 @@ if __name__ == "__main__":
             
                 symbol  = instrument_id[0]
                 term    = instrument_id[3]
-                term_id = f"{symbol} {term}" 
+                term_id = f"{symbol}:{term}" 
 
                 L1_HANDLES[handle]              = term_id
                 HANDLES_TO_QUOTES[handle]       = {
                     "BID":      None,
                     "ASK":      None,
                     "LAST":     None,
-                    "HIGH_BID": float("-inf"),
-                    "LOW_ASK":  float("int")
+                    "HIGH_BID": -10**8,
+                    "LOW_ASK":  10**8
                 }
                 TERM_IDS_TO_QUOTES[term_id]     = HANDLES_TO_QUOTES[handle]
 

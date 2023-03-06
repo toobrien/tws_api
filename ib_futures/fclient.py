@@ -624,11 +624,15 @@ class fclient(wrapper, EClient):
 
         for contract_id, _ in self.contract_store.items():
 
-            if symbol in contract_id[:sym_len]:
+            if symbol in contract_id:
 
                 ids.append(
                     ( symbol, exchange, "single", contract_id[sym_len:])
                 )
+
+        # sort by year, month code
+
+        ids = sorted(ids, key = lambda id: (id[3][-2:], id[3][-3]))
 
         return ids
 

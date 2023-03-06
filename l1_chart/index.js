@@ -33,6 +33,9 @@ async function main() {
 
         chart.applyOptions(
             {
+                cursor: {
+                    mode: 0
+                },
                 width:        chart_width,
                 height:       chart_height,   
                 watermark: {

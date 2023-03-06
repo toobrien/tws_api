@@ -2,7 +2,7 @@
 
 async function main() {
 
-    const lwc = window.LightWeightCharts;
+    const lwc = window.LightweightCharts;
 
     const server_url    = `http://${hostname}:${port}`;
 
@@ -12,13 +12,16 @@ async function main() {
     const symbols       = [];
     const charts        = {};
     const series        = {};
-    const time_labels   = {};
+    const series_idx    = [];
     const view          = document.getElementById("view");
 
     let chart_opts = {
         width:  chart_width,
         height: chart_height,
         watermark: {
+            crosshair: {
+                mode: 0
+            },
             visible:    true,
             fontSize:   12,
             horzAlign:  "left",
@@ -27,16 +30,18 @@ async function main() {
             text:       null
         },
         timeScale: {
-            tickMarkFormatter: (time, tickMarkType, local) => time_labels[time]
+            tickMarkFormatter: (time, tickMarkFormatter, locale) => series_idx[time]
         },
         localization: {
-            timeFormatter: (time, tickMarkType, local) => time_labels[time]
+            timeFormatter: (time, tickMarkFormatter, locale) => series_idx[time]
         }
     };
 
-    for (var [ term_id, quote ] of Object.keys(quotes)) {
+    var i = 0;
 
-        const symbol    = term_id.split()[0];
+    for (const [ term_id, quote ] of Object.entries(quotes)) {
+
+        const symbol    = term_id.split(":")[0];
         let   chart     = null;
 
         if (!symbols.includes(symbol)) {
@@ -61,8 +66,8 @@ async function main() {
         chart = charts[symbol];
 
         const bid_series_opts = {
-            upColor:            "#0000FF",
-            downColor:          "#0000FF",
+            upColor:            "#1984c5",
+            downColor:          "#1984c5",
             priceLineVisible:   false,
             priceFormat: {
                 type:       "price",
@@ -72,8 +77,8 @@ async function main() {
         };
 
         const ask_series_opts = {
-            upColor:            "#FF0000",
-            downColor:          "#FF0000",
+            upColor:            "#c23728",
+            downColor:          "#c23728",
             priceLineVisible:   false,
             priceFormat: {
                 type:       "price",
@@ -94,8 +99,8 @@ async function main() {
         };
 
         const high_bid_series_opts  = {
-            upColor:            "#FF00FF",
-            downColor:          "#FF00FF",
+            upColor:            "#a7d5ed",
+            downColor:          "#a7d5ed",
             priceLineVisible:   false,
             priceFormat: {
                 type:       "price",
@@ -105,8 +110,8 @@ async function main() {
         };
 
         const low_ask_series_opts = {
-            upColor:            "#FF00FF",
-            downColor:          "#FF00FF",
+            upColor:            "#e1a692",
+            downColor:          "#e1a692",
             priceLineVisible:   false,
             priceFormat: {
                 type:       "price",
@@ -129,11 +134,15 @@ async function main() {
         high_bid    = quote["high_bid"];
         low_ask     = quote["low_ask"];
 
-        series["term_id"]["bid_series"].setData([ { time: term_id, open: bid, high: bid, low: bid, close: bid } ]);
-        series["term_id"]["ask_series"].setData([ { time: term_id, open: ask, high: ask, low: ask, close: ask } ]);
-        series["term_id"]["last_series"].setData([ { time: term_id, open: last, high: last, low: last, close: last } ]);
-        series["term_id"]["high_bid_series"].setData([ { time: term_id, open: high_bid, high: high_bid, low: high_bid, close: high_bid } ]);
-        series["term_id"]["low_ask_series"].setData([ { time: term_id, open: low_ask, high: low_ask, low: low_ask, close: low_ask } ]);
+        series[term_id].bid_series.setData([ { time: i, open: bid, high: bid, low: bid, close: bid } ]);
+        series[term_id].ask_series.setData([ { time: i, open: ask, high: ask, low: ask, close: ask } ]);
+        series[term_id].last_series.setData([ { time: i, open: last, high: last, low: last, close: last } ]);
+        series[term_id].high_bid_series.setData([ { time: i, open: high_bid, high: high_bid, low: high_bid, close: high_bid } ]);
+        series[term_id].low_ask_series.setData([ { time: i, open: low_ask, high: low_ask, low: low_ask, close: low_ask } ]);
+
+        series_idx[i] = term_id;
+
+        i++;
 
     }
 
@@ -142,28 +151,26 @@ async function main() {
         let res     = await fetch(`${server_url}/get_quotes`);
         let quotes  = await res.json();
 
-        for (var [ term_id, quote ] of Object.keys(quotes)) {
+        var i = 0;
+
+        for (const [ term_id, quote ] of Object.entries(quotes)) {
 
             bid         = quote["BID"];
             ask         = quote["ASK"];
             last        = quote["LAST"];
-            high_bid    = quote["high_bid"];
-            low_ask     = quote["low_ask"];
+            high_bid    = quote["HIGH_BID"];
+            low_ask     = quote["LOW_ASK"];
 
-            series[term_id][bid_series].update({ time: term_id, open: bid, high: bid, low: bid, close: bid });
-            series[term_id][ask_series].update({ time: term_id, open: ask, high: ask, low: ask, close: ask });
-            series[term_id][last_series].update({ time: term_id, open: last, high: last, low: last, close: last });
-            series[term_id][high_bid_series].update({ time: term_id, open: high_bid, high: high_bid, low: high_bid, close: high_bid });
-            series[term_id][low_ask_series].update({ time: term_id, open: low_ask, high: low_ask, low: low_ask, close: low_ask });
+            if (!last) last = (quote["BID"] + quote["ASK"]) / 2;
+
+            series[term_id].bid_series.update({ time: i, open: bid, high: bid, low: bid, close: bid });
+            series[term_id].ask_series.update({ time: i, open: ask, high: ask, low: ask, close: ask });
+            series[term_id].last_series.update({ time: i, open: last, high: last, low: last, close: last });
+            series[term_id].high_bid_series.update({ time: i, open: high_bid, high: high_bid, low: high_bid, close: high_bid });
+            series[term_id].low_ask_series.update({ time: i, open: low_ask, high: low_ask, low: low_ask, close: low_ask });
         
-            // necessary to keep x-axis labelled properly, for some reason...
+            i++;
 
-            const symbol = term_id.split(":")[0];
-
-            chart_opts.watermark.text = symbol;
-
-            chart.applyOptions(chart_opts);
-            chart.timeScale().fitContent();
         }
 
     }

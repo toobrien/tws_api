@@ -1,3 +1,7 @@
+from sys import path
+
+path.append("../")
+
 from flask                  import Flask, render_template, Response
 from flask_cors             import CORS
 from ib_futures.fclient     import fclient
