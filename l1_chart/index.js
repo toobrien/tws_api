@@ -33,7 +33,7 @@ async function main() {
 
         chart.applyOptions(
             {
-                cursor: {
+                crosshair: {
                     mode: 0
                 },
                 width:        chart_width,
