@@ -173,6 +173,25 @@ async function main() {
     
     }
     
-    setInterval(update_charts, update_ms);
+    let interval_handle = null;
+
+    document.addEventListener(
+        "keydown", 
+        (e) => {
+
+            if (!interval_handle)
+            
+                interval_handle = setInterval(update_charts, update_ms);
+
+            else {
+
+                clearInterval(interval_handle);
+                
+                interval_handle = null;
+            
+            }
+
+        }
+    );
 
 }
