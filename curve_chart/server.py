@@ -14,17 +14,17 @@ APP = Flask(__name__, static_folder = ".", static_url_path = "")
 APP.config["CACHE_TYPE"] = "null"
 CORS(APP)
 
-L1_HANDLES          = {}
-HANDLES_TO_QUOTES   = {}
-TERM_IDS_TO_QUOTES  = {}
-MODE                = None
-NUM_TERMS           = None
+L1_HANDLES              = {}
+HANDLES_TO_QUOTES       = {}
+FRIENDLY_IDS_TO_QUOTES  = {}
+MODE                    = None
+NUM_TERMS               = None
 
 
 @APP.route("/get_quotes", methods = [ "GET" ])
 def get_quotes():
 
-    return Response(dumps(TERM_IDS_TO_QUOTES))
+    return Response(dumps(FRIENDLY_IDS_TO_QUOTES))
 
 
 @APP.route("/")
@@ -112,6 +112,7 @@ if __name__ == "__main__":
     MODE                = argv[1]
     NUM_TERMS           = int(argv[2])
     qualified_symbols   = argv[3:]
+    width               = None
 
     if MODE == "norm":
     
@@ -121,9 +122,24 @@ if __name__ == "__main__":
 
         fc.set_l1_stream_handler(diff_handler)
 
+    elif "rcal" in MODE:
+
+        parts = MODE.split(":")
+        MODE  = f"{parts[0]}:rcal"
+
+        if "diff" in MODE:
+
+            fc.set_l1_stream_handler(diff_handler)
+
+        else:
+
+            fc.set_l1_stream_handler(norm_handler)
+
+        width = int(parts[2])
+
     else:
 
-        print("mode must be one of: [ 'norm', 'diff' ]")
+        print("mode must be one of: [ 'norm', 'diff', 'rcal:<width>' ]")
 
         exit()
 
@@ -133,29 +149,44 @@ if __name__ == "__main__":
         symbol      = parts[0]
         exchange    = parts[1]
 
-        ids = fc.get_instrument_ids(symbol, exchange)
+        ids = fc.get_instrument_ids(symbol, exchange)[:NUM_TERMS]
 
-        for instrument_id in ids[:NUM_TERMS]:
+        if "rcal" in MODE:
+
+            new_ids = []
+
+            for i in range(len(ids[:-width])):
+
+                front_leg   = ids[i]
+                back_leg    = ids[i + width]
+
+                new_id = ( front_leg[0], front_leg[1], "rcal", front_leg[3], back_leg[3] )
+
+                new_ids.append(new_id)
+
+            ids = new_ids
+
+        for instrument_id in ids:
 
             handle = fc.open_l1_stream(instrument_id)
 
             if (handle):
             
-                symbol  = instrument_id[0]
-                term    = instrument_id[3]
-                term_id = f"{symbol}:{term}" 
+                symbol      = instrument_id[0]
+                terms       = "".join(instrument_id[3:])
+                friendly_id = f"{symbol}:{terms}"
 
-                L1_HANDLES[handle]              = term_id
-                HANDLES_TO_QUOTES[handle]       = {
+                L1_HANDLES[handle]                  = friendly_id
+                HANDLES_TO_QUOTES[handle]           = {
                     "BID":      None,
                     "ASK":      None,
                     "LAST":     None,
                     "HIGH_BID": -10**8,
                     "LOW_ASK":  10**8
                 }
-                TERM_IDS_TO_QUOTES[term_id]     = HANDLES_TO_QUOTES[handle]
+                FRIENDLY_IDS_TO_QUOTES[friendly_id] = HANDLES_TO_QUOTES[handle]
 
-                if MODE == "diff":
+                if "diff" in MODE:
 
                     HANDLES_TO_QUOTES[handle]["INIT_PRICE"] = None
 
