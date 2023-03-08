@@ -9,15 +9,31 @@ async function main() {
     let res = await fetch(`${server_url}/get_instruments`);
     res     = await res.json();
     
-    const chart_display = document.getElementById("chart_display")
+    const chart_display = document.getElementById("chart_display");
+    const charts        = {};
     
     for (const [ instrument, handle ] of Object.entries(res)) {
     
         const chart_container = document.createElement("div");
     
-        chart_container.id = `chart_${handle}_container`;
-    
+        chart_container.id = handle;
+
+        chart_container.onclick = (e) => { 
+            
+            const selected_handle   = parseInt(e.currentTarget.id);
+            const selected_chart    = charts[selected_handle];
+            const ts                = selected_chart.timeScale();
+            const rng               = ts.getVisibleLogicalRange();
+
+            for (const [ handle, chart ] of Object.entries(charts))
+
+                chart.timeScale().setVisibleLogicalRange(rng);
+
+        };
+
         const chart = lwc.createChart(chart_container);
+
+        charts[handle] = chart;
     
         let friendly_name_parts = instrument.substring(1, instrument.length - 1).replaceAll("'", "").split(", ");
         let symbol              = friendly_name_parts[0];
@@ -51,7 +67,7 @@ async function main() {
                     secondsVisible: true,
                 }
             }
-        )
+        );
     
         chart_display.appendChild(chart_container);
     
