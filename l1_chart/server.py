@@ -55,25 +55,9 @@ def get_root():
 
 def l1_stream_handler(args):
 
-    handle          = args["reqId"]
-    
-    '''
-    # check output on console
-
-    instrument_id   = L1_HANDLES[handle]
-    measure         =   args["size"]  if "size" in args else  \
-                        args["price"] if "price" in args else \
-                        args["value"] if "value" in args else \
-                        None
-
-    out = f"{str(instrument_id):50s}{str(handle):5s}{args['tickType']:20s}{measure}"
-
-    print(out)
-    '''
-
-    tick_type = args["tickType"]
-
-    quote = QUOTES[handle]
+    handle      = args["reqId"]
+    tick_type   = args["tickType"]
+    quote       = QUOTES[handle]
 
     if tick_type == "BID":
 

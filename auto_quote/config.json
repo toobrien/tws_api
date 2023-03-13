@@ -1,0 +1,9 @@
+{
+    "hostname":     "localhost",
+    "port":         "8082",
+    "tws": {
+        "host":         "127.0.0.1",
+        "port":         7496,
+        "client_id":    2
+    }   
+}

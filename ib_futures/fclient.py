@@ -1,7 +1,8 @@
 from asyncio        import new_event_loop
-from functools      import partial
+# from functools    import partial
 from ibapi.client   import EClient
 from ibapi.contract import ComboLeg, Contract
+from ibapi.order    import Order
 from ibapi.ticktype import TickTypeEnum 
 from ibapi.wrapper  import EWrapper
 from .structs       import instrument, month_codes
@@ -46,6 +47,18 @@ class wrapper(EWrapper):
 
         print(f"{get_ident()}:wrapper:nextValidId:{orderId}")
 
+        if self.order_id_fut:
+
+            # annoyingly, this function doesn't use a reqId, so I can't use
+            # the typical resolve() but need this special future
+            #
+            # self.reqIds must be called synchronously for this to work
+
+            self.loop.call_soon_threadsafe(
+                self.order_id_fut.set_result,
+                orderId
+            )
+
 
     def connectionClosed(self):
 
@@ -77,6 +90,11 @@ class wrapper(EWrapper):
             pass
 
 
+    ######################
+    ## CONTRACT RELATED ##
+    ######################
+
+
     def contractDetails(self, reqId, contractDetails):
 
         super().contractDetails(reqId, contractDetails)
@@ -88,6 +106,55 @@ class wrapper(EWrapper):
 
         self.resolve(reqId)
 
+
+    ###################
+    ## ORDER RELATED ##
+    ###################
+
+
+    # pairs with EClient.reqAllOpenOrders
+
+    def openOrder(self, orderId, contract, order, orderState):
+
+        # not sure how to implement this yet
+
+        # self.handlers["open_order"](...)
+
+        super().openOrder(orderId, contract, order, orderState)
+
+
+    # pairs with EClient.reqAllOpenOrders
+
+    def orderStatus(
+        self,
+        orderId,
+        status, 
+        filled,
+        remaining,
+        avgFillPrice,
+        permId,
+        parentId,
+        lastFillPrice,
+        clientId,
+        whyHeld,
+        mktCapPrice
+    ):
+
+        super().orderStatus(
+            orderId, status, filled, remaining, avgFillPrice, permId,
+            parentId, lastFillPrice, clientId, whyHeld, mktCapPrice
+        )
+
+        self.handlers["order_status"](
+            orderId, status, filled, remaining, avgFillPrice, permId,
+            parentId, lastFillPrice, clientId, whyHeld, mktCapPrice
+        )
+
+
+    #########################
+    ## MARKET DATA RELATED ##
+    #########################
+    
 
     # L1 data functions: tickPrice, tickSize, tickValue, tickGeneric
 
@@ -206,6 +273,11 @@ class wrapper(EWrapper):
             
             self.resolve(reqId)
 
+    
+    #####################
+    ## SYNCHRONIZATION ##
+    #####################
+
 
     def resolve(self, reqId):
             
@@ -240,9 +312,10 @@ class fclient(wrapper, EClient):
 
         # requests, results, and callbacks
         
-        self.reqId      = -1
-        self.results    = {}
-        self.handlers   = {}
+        self.reqId          = -1
+        self.results        = {}
+        self.handlers       = {}
+        self.order_id_fut   = None
 
         # stores
 
@@ -274,6 +347,47 @@ class fclient(wrapper, EClient):
     #####################
     ## ECLIENT PRIVATE ##
     #####################
+
+
+    def cancelOrder(self, kwargs):
+
+        self.schedule(
+            super().cancelOrder,
+            kwargs
+        )
+
+
+    def placeOrder(self, kwargs):
+
+        self.schedule(
+            super().placeOrder,
+            kwargs
+        )
+
+
+    def reqGlobalCancel(self):
+
+        self.schedule(
+            super().reqGlobalCancel,
+            None
+        )
+
+
+    # this MUST be run synchronously through self.loop.run_until_complete
+
+    async def reqIds(self, kwargs):
+
+        self.order_id_fut = self.loop.create_future()
+        
+        self.schedule(
+            super().reqIds,
+            kwargs
+        )
+
+        order_id            = await self.order_id_fut
+        self.order_id_fut   = None
+
+        return order_id
 
 
     # see constants at top of file
@@ -543,6 +657,12 @@ class fclient(wrapper, EClient):
     ####################
 
 
+    #########################
+    ## MARKET DATA RELATED ##
+    #########################
+
+
+
     def set_market_data_type(self, type: int):
 
         self.reqMarketDataType(type)   
@@ -637,6 +757,126 @@ class fclient(wrapper, EClient):
         return ids
 
 
+    ###################
+    ## ORDER RELATED ##
+    ###################
+
+
+    # not sure how to implement EWrapper.openOrder yet
+
+    def set_open_order_handler(self, handler):
+
+        self.handlers["open_order"] = handler
+
+
+    def set_order_status_handler(self, handler):
+
+        self.handlers["order_status"] = handler
+
+
+    def submit_order(
+        self,
+        instrument_id:      tuple,
+        action:             str,
+        type:               str,
+        limit_price:        float = None,
+        qty:                int   = 0,
+        profit_taker_price: float = None,
+        stop_loss_price:    float = None
+    ):
+
+        con         = self.check_contract(instrument_id)
+        parent_id   = self.loop.run_until_complete(self.reqIds({ "numIds": 1 }))
+        ids         = None
+
+        if con and parent_id:
+
+            ids = { "parent_id": parent_id }
+
+            o               = Order()
+            o.orderId       = parent_id
+            o.action        = action
+            o.orderType     = type
+            o.totalQuantity = qty
+            o.transmit      = not (profit_taker_price or stop_loss_price)
+
+            if profit_taker_price:
+
+                tp                      = Order()
+                tp.orderId              = parent_id + 1
+                ids["profit_taker_id"]  = parent_id + 1
+                tp.action               = "SELL" if action == "BUY" else "BUY"
+                tp.orderType            = "LMT"
+                tp.totalQuantity        = qty
+                tp.lmtPrice             = profit_taker_price
+                tp.parentId             = parent_id
+                tp.transmit             = not stop_loss_price
+
+            if stop_loss_price:
+
+                sl                  = Order()
+                sl.orderId          = parent_id + 2
+                ids["stop_loss_id"] = parent_id + 2
+                sl.action           = "SELL" if action == "BUY" else "BUY"
+                sl.orderType        = "STP"
+                sl.auxPrice         = stop_loss_price
+                sl.totalQuantity    = qty
+                sl.parentId         = parent_id
+                sl.transmit         = True
+
+            if type == "MKT":
+
+                o.orderType = "MKT"
+
+            elif type == "LMT":
+            
+                o.orderType = "LMT"
+                o.lmtPrice  = limit_price
+
+        else:
+
+            if not con:
+
+                print("error: no contract found for instrument id")
+            
+            elif not parent_id:
+
+                print("error: couldn't retrieve valid order id")
+
+        pass
+
+        self.placeOrder(
+            {
+                "orderId":  parent_id, 
+                "contract": con, 
+                "order":    o
+            }
+        )
+
+        pass
+
+        return ids
+
+    
+    def cancel_order(self, id: int):
+
+        self.cancelOrder(
+            {
+                "orderId": id,
+                "manualCancelOrderTime": ""
+            }
+        )
+        
+        pass
+
+
+    def cancel_all_orders(self):
+
+        self.reqGlobalCancel(self)
+
+        pass
+
+
     ###########################
     ## CONCURRENCY FUNCTIONS ##
     ###########################
@@ -662,7 +902,13 @@ class fclient(wrapper, EClient):
 
         sleep(SLEEP)
 
-        func(**kwargs)
+        if kwargs:
+        
+            func(**kwargs)
+
+        else:
+
+            func()
 
 
     # for synchronizing with EWrapper
