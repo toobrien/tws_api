@@ -66,28 +66,37 @@ class wrapper(EWrapper):
 
 
     def error(self, reqId, errorCode, errorString, advancedOrderRejectJson = ""):
-        
+
         # this will print the message
 
         super().error(reqId, errorCode, errorString, advancedOrderRejectJson = "")
+
+        # the client can handle errors by registering via set_error_handler, 
+        # otherwise fclient will deal with them
+
+        if "error" in self.handlers:
+
+            self.handlers["error"](reqId, errorCode, errorString, advancedOrderRejectJson = "")
+
+        else:
+            
+            if errorCode == 10090:
+
+                # market data warning
+                
+                pass
+
+            if errorCode == 200:
+            
+                # attempt to quote nonexistent contract, probably
+                
+                self.resolve(reqId)
         
-        if errorCode == 10090:
+            elif errorCode == 300:
 
-            # market data warning
-            
-            pass
-
-        if errorCode == 200:
-        
-            # attempt to quote nonexistent contract, probably
-            
-            self.resolve(reqId)
-    
-        elif errorCode == 300:
-
-            # attempt to cancel stream, but not open... dont worry
-            
-            pass
+                # attempt to cancel stream, but not open... dont worry
+                
+                pass
 
 
     ######################
@@ -657,10 +666,21 @@ class fclient(wrapper, EClient):
     ####################
 
 
+    ###################
+    ## ERROR RELATED ##
+    ###################
+
+
+    # for client-side error handling
+
+    def set_error_handler(self, handler):
+
+        self.handlers["error"] = handler
+
+
     #########################
     ## MARKET DATA RELATED ##
     #########################
-
 
 
     def set_market_data_type(self, type: int):
