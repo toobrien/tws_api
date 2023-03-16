@@ -3,6 +3,7 @@
 #
 # For blocking user calls use ib_futures.fclient instead.
 
+
 from asyncio        import new_event_loop
 # from functools    import partial
 from ibapi.client   import EClient
@@ -793,7 +794,7 @@ class async_fclient(wrapper, EClient):
         self.handlers["order_status"] = handler
 
 
-    def submit_order(
+    async def submit_order(
         self,
         instrument_id:      tuple,
         action:             str,
@@ -806,7 +807,7 @@ class async_fclient(wrapper, EClient):
     ):
 
         parent_id   = order_id
-        con         = self.check_contract(instrument_id)
+        con         = await self.check_contract(instrument_id)
         ids         = None
 
         if con and parent_id:
