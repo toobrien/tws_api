@@ -1,3 +1,8 @@
+# User calls are asynchronous in this version of fclient, 
+# primarily to enable non-blocking waits via asyncio.
+#
+# For blocking user calls use ib_futures.fclient instead.
+
 from asyncio        import new_event_loop
 # from functools    import partial
 from ibapi.client   import EClient
@@ -307,7 +312,7 @@ class wrapper(EWrapper):
 #############
 
 
-class fclient(wrapper, EClient):
+class async_fclient(wrapper, EClient):
 
 
     def __init__(self, host, port, id):
@@ -383,8 +388,6 @@ class fclient(wrapper, EClient):
             None
         )
 
-
-    # this MUST be run synchronously through self.loop.run_until_complete
 
     async def reqIds(self, kwargs):
 
@@ -506,7 +509,7 @@ class fclient(wrapper, EClient):
         return await fut
 
 
-    def update_contract_store(self, symbol:str, exchange: str):
+    async def update_contract_store(self, symbol:str, exchange: str):
 
         symbols = symbol.split(".")
 
@@ -519,13 +522,7 @@ class fclient(wrapper, EClient):
             con.exchange    = exchange
             con.currency    = "USD"
 
-            contracts = self.loop.run_until_complete(
-                            self.reqContractDetails(
-                                {
-                                    "contract": con        
-                                }
-                            )
-                        )
+            contracts = await self.reqContractDetails({ "contract": con })
 
             for contract_details in contracts:
 
@@ -538,11 +535,11 @@ class fclient(wrapper, EClient):
                 self.contract_store[contract_id] = contract_details
 
 
-    def get_contract(self, instr: instrument):
+    async def get_contract(self, instr: instrument):
         
         if instr.symbol not in self.contract_store:
 
-            self.update_contract_store(instr.symbol, instr.exchange)
+            await self.update_contract_store(instr.symbol, instr.exchange)
             
         res = None
 
@@ -645,7 +642,7 @@ class fclient(wrapper, EClient):
         return res
 
 
-    def check_contract(self, instrument_id: tuple):
+    async def check_contract(self, instrument_id: tuple):
 
         con = None
 
@@ -653,7 +650,7 @@ class fclient(wrapper, EClient):
 
             instr = instrument(instrument_id)
 
-            con = self.get_contract(instr)
+            con = await self.get_contract(instr)
 
             if con:
 
@@ -700,10 +697,10 @@ class fclient(wrapper, EClient):
         self.handlers["l2_stream"] = handler
 
 
-    def open_l1_stream(self, instrument_id: tuple):
+    async def open_l1_stream(self, instrument_id: tuple):
 
         handle  = None
-        con     = self.check_contract(instrument_id)
+        con     = await self.check_contract(instrument_id)
         
         if con:
         
@@ -725,14 +722,14 @@ class fclient(wrapper, EClient):
         self.cancelMktData({ "reqId": reqId })
 
 
-    def open_l2_stream(
+    async def open_l2_stream(
         self,
         instrument_id:  tuple,
         num_rows:       int
     ):
 
         handle  = None
-        con     = self.check_contract(instrument_id)
+        con     = await self.check_contract(instrument_id)
 
         if con:
 
@@ -757,9 +754,9 @@ class fclient(wrapper, EClient):
 
     # add all contracts for a symbol and return each term's instrument id
 
-    def get_instrument_ids(self, symbol: str, exchange: str):
+    async def get_instrument_ids(self, symbol: str, exchange: str):
 
-        self.update_contract_store(symbol, exchange)
+        await self.update_contract_store(symbol, exchange)
 
         sym_len = len(symbol)
         ids     = []

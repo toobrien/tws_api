@@ -2,18 +2,19 @@ from sys import path
 
 path.append("../")
 
-from ib_futures.fclient     import fclient
-from json                   import loads
-from quote_defs             import QUOTE_DEFS
-from sys                    import argv
-from time                   import sleep
+from asyncio                    import gather, run, sleep
+from ib_futures.async_fclient   import async_fclient
+from json                       import loads
+from quote_defs                 import QUOTES
+from sys                        import argv
 
 
 CONFIG      = loads(open("./config.json", "r").read())
+FC          = None
 L1_HANDLES  = {}
 L1_DATA     = {}
-ORDERS      = {}
-ENABLED     = {}
+ORDER_STATE = {}
+
 
 
 ###############################
@@ -76,36 +77,27 @@ def order_status_handler(
     )
 
 
-##################
-## MAIN PROGRAM ##
-##################
+##############
+## QUOTING ##
+##############
 
 
-def quote_continuously(fc: fclient, instr: tuple, qdef: dict):
+async def quote_continuously(quote: dict):
 
-    # initialize data state
+    # initialize state
 
-    handle = fc.open_l1_stream(instr)
-    
-    L1_HANDLES[handle]  = instr
-    L1_DATA[handle]     = {
-        "BID":  None,
-        "ASK":  None,
-        "LAST": None
-    }
-    l1_latest           = L1_DATA[handle]
-    ORDERS[instr]       = {}
-    active_orders       = ORDERS[instr]
-    ENABLED[instr]      = True
+    instr   = quote["instrument"]
+    enabled = quote["enabled"]
+    fills   = 0
 
-    # initialize quote parameters
-
-    update_interval     = qdef["update_interval"]
-    max_fills           = qdef["max_fills"]
-    multiplier          = qdef["multiplier"]
-    quote_params        = qdef["quote_params"]
-    fills               = 0
-    enabled             = True
+    l1_handle               = FC.open_l1_stream(instr)
+    L1_HANDLES[l1_handle]   = instr
+    L1_DATA[l1_handle]      = {
+                                "BID":  None,
+                                "ASK":  None,
+                                "LAST": None
+                            }
+    l1_latest               = L1_DATA[l1_handle]
 
     # start quoting
 
@@ -114,56 +106,40 @@ def quote_continuously(fc: fclient, instr: tuple, qdef: dict):
         best_bid = l1_latest["BID"]
         best_ask = l1_latest["ASK"]
 
-        if not (best_bid or best_ask):
+        # ...
 
-            continue
+        enabled = fills <= quote["max_fills"]
+        
+        if enabled:
+        
+            await sleep(quote["update_interval"])
 
-        for params in quote_params:
-
-            side        = params["side"]
-            relative_to = params["best"]
-            entry       = params["entry"]
-            tp          = None if "tp" not in params else params["tp"]
-            sl          = None if "sl" not in params else params["sl"]
-            sl_delay    = None if "sl_delay" not in params else params["sl_delay"]
-
-            pass
-
-        if fills >= max_fills or not ENABLED[instr]:
+        else:
 
             break
-        
-        else:
-        
-            sleep(update_interval)
 
     pass
 
 
+##################
+## MAIN PROGRAM ##
+##################
+
+
+async def main():
+
+    await gather(*[ quote_continuously(quote) for quote in QUOTES ])
+
+
 if __name__ == "__main__":
-    
-    fc = fclient(
+
+    FC = async_fclient(
         host    = CONFIG["tws"]["host"],
         port    = CONFIG["tws"]["port"],
         id      = CONFIG["tws"]["client_id"]
     )
     
-    fc.set_l1_stream_handler(l1_stream_handler)
-    fc.set_order_status_handler(order_status_handler)
+    FC.set_l1_stream_handler(l1_stream_handler)
+    FC.set_order_status_handler(order_status_handler)
 
-    instr   = ( *argv[1:], )
-    qdef    = QUOTE_DEFS[instr]
-
-    quote_continuously(fc, instr, qdef)
-
-    pass
-
-    '''
-    ids = fc.submit_order(instr, "BUY", "LMT", 2.5000, 1, None, None)
-
-    if ids:
-    
-        sleep(10)
-
-        fc.cancel_order(ids["parent_id"])
-    '''
+    run(main())
