@@ -153,11 +153,14 @@ async def quote_continuously(
         best_bid = l1_latest["BID"]
         best_ask = l1_latest["ASK"]
 
-        if not active_order_ids["parent_id"]:
+        parent_id = active_order_ids["parent_id"]
 
-            order_id                        = FC.get_next_order_id()
-            active_order_ids["parent_id"]   = order_id
-            order_params["order_id"]        = order_id
+        if  not active_order_ids["parent_id"] or \
+            ORDER_STATES[parent_id]["status"] == "cancelled":
+
+            parent_id                       = FC.get_next_order_id()
+            active_order_ids["parent_id"]   = parent_id
+            order_params["order_id"]        = parent_id
 
             base = best_bid if action == "BUY" else best_ask
 
@@ -176,9 +179,7 @@ async def quote_continuously(
 
         # ...
 
-        if fills <= max_fills:
-
-            enabled = False
+        enabled = fills <= max_fills
         
         if enabled:
         
