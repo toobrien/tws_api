@@ -1,38 +1,28 @@
 
 
-QUOTES = [
+QUOTE_DEFS = [
     {
-        "instrument":       ( "RB", "NYMEX", "single", "J23" ),
+        "instrument_id":    ( "RB", "NYMEX", "single", "J23" ),
         "max_fills":        1,
-        "fills":            0,
         "qty":              1,
-        "update_interval":  5.0,
+        "duration":         5,
         "action":           "BUY",
-        "relative_to":      "best",
-        "max_change":       0.0050,
         "entry":            -0.0500,
+        "enabled":          True,
+        "max_worsening":    0.0025,
         "stop_loss":        0.0050,
-        "take_profit":      0.0050,
-        "order_id":         None,
-        "stop_loss_id":     None,
-        "take_profit_id":   None,
-        "enabled":          True    
+        "take_profit":      0.0050 
     },
     {
-        "instrument":       ( "RB", "NYMEX", "single", "J23" ),
+        "instrument_id":    ( "RB", "NYMEX", "single", "J23" ),
         "max_fills":        1,
-        "fills":            0,
         "qty":              1,
-        "update_interval":  5.0,
-        "action":           "BUY",
-        "relative_to":      "best",
-        "max_change":       0.0050,
-        "entry":            -0.0500,
+        "duration":         5,
+        "action":           "SELL",
+        "entry":            0.0500,
+        "enabled":          False,
+        "max_worsening":    0.025,
         "stop_loss":        0.0050,
-        "take_profit":      0.0050,
-        "order_id":         None,
-        "stop_loss_id":     None,
-        "take_profit_id":   None,
-        "enabled":          False   
+        "take_profit":      -0.0050,
     },
 ]

@@ -131,11 +131,20 @@ class wrapper(EWrapper):
 
     def openOrder(self, orderId, contract, order, orderState):
 
-        # not sure how to implement this yet
-
-        # self.handlers["open_order"](...)
-
         super().openOrder(orderId, contract, order, orderState)
+
+        if self.handlers["open_order"]:
+        
+            self.handlers["open_order"](orderId, contract, order, orderState)
+
+
+    def openOrderEnd(self):
+
+        super().openOrderEnd()
+
+        if self.handlers["open_order_end"]:
+
+            self.handlers["open_order_end"]()
 
 
     # pairs with EClient.reqAllOpenOrders
@@ -495,6 +504,14 @@ class async_fclient(wrapper, EClient):
             )
 
 
+    def reqAllOpenOrders(self):
+
+        self.schedule(
+            super().reqAllOpenOrders,
+            None
+        )
+
+
     async def reqContractDetails(self, kwargs):
 
         self.reqId  += 1
@@ -782,11 +799,23 @@ class async_fclient(wrapper, EClient):
     ###################
 
 
-    # not sure how to implement EWrapper.openOrder yet
+    async def get_next_order_id(self):
+
+        return await self.reqIds()
+
+    def get_open_orders(self):
+
+        self.reqAllOpenOrders()
+
 
     def set_open_order_handler(self, handler):
 
         self.handlers["open_order"] = handler
+
+
+    def set_open_order_end_handler(self, handler):
+
+        self.handlers["open_order_end"] = handler
 
 
     def set_order_status_handler(self, handler):
@@ -803,7 +832,8 @@ class async_fclient(wrapper, EClient):
         limit_price:        float = None,
         qty:                int   = 0,
         profit_taker_price: float = None,
-        stop_loss_price:    float = None
+        stop_loss_price:    float = None,
+        duration:           int = None
     ):
 
         parent_id   = order_id
@@ -820,6 +850,10 @@ class async_fclient(wrapper, EClient):
             o.orderType     = type
             o.totalQuantity = qty
             o.transmit      = not (profit_taker_price or stop_loss_price)
+
+            if duration:
+
+                o.duration = duration
 
             if profit_taker_price:
 
