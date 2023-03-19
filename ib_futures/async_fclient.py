@@ -53,15 +53,12 @@ class wrapper(EWrapper):
 
         print(f"{get_ident()}:wrapper:nextValidId:{orderId}")
 
-        if self.order_id_fut:
+        if self.single_futures["reqIds"]:
 
-            # annoyingly, this function doesn't use a reqId, so I can't use
-            # the typical resolve() but need this special future
-            #
-            # self.reqIds must be called synchronously for this to work
+            # self.reqIds must be called synchronously for this to work (?)
 
             self.loop.call_soon_threadsafe(
-                self.order_id_fut.set_result,
+                self.single_futures["reqIds"].set_result,
                 orderId
             )
 
@@ -142,9 +139,12 @@ class wrapper(EWrapper):
 
         super().openOrderEnd()
 
-        if self.handlers["open_order_end"]:
+        if self.single_futures["openOrderEnd"]:
 
-            self.handlers["open_order_end"]()
+            self.loop.call_soon_threadsafe(
+                self.single_futures["openOrderEnd"].set_result,
+                None
+            )
 
 
     # pairs with EClient.reqAllOpenOrders
@@ -341,7 +341,6 @@ class async_fclient(wrapper, EClient):
         self.reqId          = -1
         self.results        = {}
         self.handlers       = {}
-        self.order_id_fut   = None
 
         # stores
 
@@ -356,6 +355,11 @@ class async_fclient(wrapper, EClient):
         self.market_depth_queue = []
         self.loop               = new_event_loop()
         self.last_exec          = -1
+        
+        self.single_futures = {
+            "reqIds":       None,
+            "openOrderEnd": None
+        }
 
         # initialize connection
 
@@ -401,15 +405,15 @@ class async_fclient(wrapper, EClient):
 
     async def reqIds(self, kwargs):
 
-        self.order_id_fut = self.loop.create_future()
+        self.single_futures["reqIds"] = self.loop.create_future()
         
         self.schedule(
             super().reqIds,
             kwargs
         )
 
-        order_id            = await self.order_id_fut
-        self.order_id_fut   = None
+        order_id                        = await self.single_futures["reqIds"]
+        self.single_futures["reqIds"]   = None
 
         return order_id
 
@@ -504,12 +508,18 @@ class async_fclient(wrapper, EClient):
             )
 
 
-    def reqAllOpenOrders(self):
+    async def reqOpenOrders(self):
+
+        self.single_futures["reqOpenOrders"] = self.loop.create_future()
 
         self.schedule(
-            super().reqAllOpenOrders,
+            super().reqOpenOrders,
             None
         )
+
+        await self.single_futures["reqOpenOrders"]
+
+        self.single_futures["reqOpenOrders"] = None
 
 
     async def reqContractDetails(self, kwargs):
@@ -803,9 +813,10 @@ class async_fclient(wrapper, EClient):
 
         return await self.reqIds()
 
-    def get_open_orders(self):
 
-        self.reqAllOpenOrders()
+    async def get_open_orders(self):
+
+        await self.reqOpenOrders()
 
 
     def set_open_order_handler(self, handler):
@@ -828,21 +839,24 @@ class async_fclient(wrapper, EClient):
         instrument_id:      tuple,
         action:             str,
         type:               str,
-        order_id:           int = None,
-        limit_price:        float = None,
-        qty:                int   = 0,
-        profit_taker_price: float = None,
-        stop_loss_price:    float = None,
-        duration:           int = None
+        order_id:           int     = None,
+        limit_price:        float   = None,
+        qty:                int     = 0,
+        profit_taker_price: float   = None,
+        stop_loss_price:    float   = None,
+        duration:           int     = None
     ):
 
         parent_id   = order_id
         con         = await self.check_contract(instrument_id)
-        ids         = None
+        ids         = {
+            "parent_id":        parent_id,
+            "profit_taker_id":  None,
+            "stop_loss_id":     None
+        }
+        bracket = []
 
         if con and parent_id:
-
-            ids = { "parent_id": parent_id }
 
             o               = Order()
             o.orderId       = parent_id
@@ -855,6 +869,10 @@ class async_fclient(wrapper, EClient):
 
                 o.duration = duration
 
+            if profit_taker_price or stop_loss_price:
+
+                bracket.append(o)
+
             if profit_taker_price:
 
                 tp                      = Order()
@@ -866,6 +884,8 @@ class async_fclient(wrapper, EClient):
                 tp.lmtPrice             = profit_taker_price
                 tp.parentId             = parent_id
                 tp.transmit             = not stop_loss_price
+                
+                bracket.append(tp)
 
             if stop_loss_price:
 
@@ -878,6 +898,8 @@ class async_fclient(wrapper, EClient):
                 sl.totalQuantity    = qty
                 sl.parentId         = parent_id
                 sl.transmit         = True
+
+                bracket.append(sl)
 
             if type == "MKT":
 
@@ -900,11 +922,12 @@ class async_fclient(wrapper, EClient):
 
         pass
 
+        
         self.placeOrder(
             {
                 "orderId":  parent_id, 
                 "contract": con, 
-                "order":    o
+                "order":    o if not bracket else bracket
             }
         )
 

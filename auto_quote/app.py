@@ -6,7 +6,6 @@ from asyncio                    import gather, run, sleep
 from ib_futures.async_fclient   import async_fclient
 from json                       import loads
 from quote_defs                 import QUOTE_DEFS
-from sys                        import argv
 
 
 CONFIG          = loads(open("./config.json", "r").read())
@@ -44,6 +43,13 @@ def l1_stream_handler(args):
 
         quote["LAST"] = args["price"]
     
+    pass
+
+
+def open_order_handler():
+
+    # not sure how much needs implementing here
+
     pass
 
 
@@ -93,14 +99,44 @@ def order_status_handler(
     )
 
 
-def open_order_end_handler():
-
-    pass
-
-
 ##############
 ## QUOTING ##
 ##############
+
+
+def update_quote(
+    l1_handle:          int,
+    action:             str,
+    entry:              float,
+    max_worsening:      float,
+    take_profit:        float,
+    order_params:       dict,
+):
+
+    l1_latest                       = L1_DATA[l1_handle]
+    best_bid                        = l1_latest["BID"]
+    best_ask                        = l1_latest["ASK"]
+    base                            = None
+
+    if action == "BUY":
+
+        base                        = best_bid
+        order_params["limit_price"] = min(base + entry, base + max_worsening)
+
+    else:
+
+        base                        = best_ask
+        order_params["limit_price"] = max(base + entry, base + max_worsening)
+
+    order_params["take_profit"] = order_params["limit_price"] + take_profit
+
+    new_order_ids = FC.submit_order(**order_params)
+
+    return (
+        new_order_ids["parent_id"],
+        new_order_ids["profit_taker_id"],
+        new_order_ids["stop_loss_id"]
+    )
 
 
 async def quote_continuously(
@@ -108,11 +144,11 @@ async def quote_continuously(
     max_fills:      int,
     qty:            int,
     action:         str,
-    entry:          int,
+    entry:          float,
     enabled:        bool,
     max_worsening:  float,
     stop_loss:      float,
-    take_profit:    int,
+    take_profit:    float,
     duration:       int
 ):
 
@@ -123,19 +159,18 @@ async def quote_continuously(
 
     l1_handle               = FC.open_l1_stream(instrument_id)
     L1_HANDLES[l1_handle]   = instrument_id
-    L1_DATA[l1_handle]      = {
-                                "BID":  None,
-                                "ASK":  None,
-                                "LAST": None
-                            }
-    l1_latest               = L1_DATA[l1_handle]
     
-    active_order_ids    = {
-        "parent_id":        None,
-        "profit_taker_id":  None,
-        "stop_loss_id":     None
+    L1_DATA[l1_handle] = {
+        "BID":  None,
+        "ASK":  None,
+        "LAST": None
     }
-    order_params        = {
+    
+    parent_id       = None
+    stop_loss_id    = None
+    profit_taker_id = None
+
+    order_params = {
         "instrument_id":        instrument_id,
         "action":               action,
         "type":                 "LMT",
@@ -150,44 +185,38 @@ async def quote_continuously(
 
     while (enabled):
 
-        best_bid = l1_latest["BID"]
-        best_ask = l1_latest["ASK"]
-
-        parent_id = active_order_ids["parent_id"]
-
-        if  not active_order_ids["parent_id"] or \
+        if  not parent_id or \
             ORDER_STATES[parent_id]["status"] == "cancelled":
 
-            parent_id                       = FC.get_next_order_id()
-            active_order_ids["parent_id"]   = parent_id
-            order_params["order_id"]        = parent_id
+            parent_id                   = FC.get_next_order_id()
+            order_params["parent_id"]   = parent_id
 
-            base = best_bid if action == "BUY" else best_ask
+            parent_id, profit_taker_id, stop_loss_id = update_quote(
+                l1_handle,
+                action,
+                entry,
+                max_worsening,
+                take_profit,
+                order_params
+            )
 
-            order_params["limit_price"] = base + entry
-            order_params["take_profit"] = order_params["limit_price"] + take_profit
+        elif ORDER_STATES[parent_id]["filled"]:
 
-            new_order_ids = FC.submit_order(**order_params)
+            if  (profit_taker_id and ORDER_STATES[profit_taker_id]["status"] == "filled") or \
+                (stop_loss_id    and ORDER_STATES[stop_loss_id]["status"]    == "filled"):
 
-            if "profit_taker_id" in new_order_ids:
-
-                active_order_ids["profit_taker_id"] = new_order_ids["profit_taker_id"]
-
-            if "stop_loss_id" in new_order_ids:
-
-                active_order_ids["stop_loss_id"] = new_order_ids["stop_loss_id"]
-
-        # ...
+                fills += 1
+                
+                parent_id       = None
+                profit_taker_id = None
+                stop_loss_id    = None
 
         enabled = fills <= max_fills
         
-        if enabled:
-        
+        if enabled: 
+            
             await sleep(update_interval)
-
-        else:
-
-            break
+            await FC.get_open_orders()
 
     pass
 
@@ -210,7 +239,9 @@ if __name__ == "__main__":
         id      = CONFIG["tws"]["client_id"]
     )
     
+    FC.set_error_handler(error_handler)
     FC.set_l1_stream_handler(l1_stream_handler)
+    FC.set_open_order_handler(open_order_handler)
     FC.set_order_status_handler(order_status_handler)
     FC.set_open_order_end_handler(open_order_end_handler)
 
