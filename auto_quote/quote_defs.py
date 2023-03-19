@@ -21,7 +21,7 @@ QUOTE_DEFS = [
         "action":           "SELL",
         "entry":            0.0500,
         "enabled":          False,
-        "max_worsening":    -0.025,
+        "max_worsening":    -0.0025,
         "stop_loss":        0.0050,
         "take_profit":      -0.0050,
     },

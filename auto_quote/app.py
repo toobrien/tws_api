@@ -116,18 +116,13 @@ def update_quote(
     l1_latest                       = L1_DATA[l1_handle]
     best_bid                        = l1_latest["BID"]
     best_ask                        = l1_latest["ASK"]
-    base                            = None
+    current_price                   = order_params["limit_price"]
+    base                            = best_bid  if action == "BUY" else best_ask
+    comp_func                       = min       if action == "BUY" else max
 
-    if action == "BUY":
-
-        base                        = best_bid
-        order_params["limit_price"] = min(base + entry, base + max_worsening)
-
-    else:
-
-        base                        = best_ask
-        order_params["limit_price"] = max(base + entry, base + max_worsening)
-
+    order_params["limit_price"] =   comp_func(base + entry, current_price + max_worsening) \
+                                    if current_price else base + entry
+                                     
     order_params["take_profit"] = order_params["limit_price"] + take_profit
 
     new_order_ids = FC.submit_order(**order_params)
@@ -206,7 +201,7 @@ async def quote_continuously(
                 (stop_loss_id    and ORDER_STATES[stop_loss_id]["status"]    == "filled"):
 
                 fills += 1
-                
+
                 parent_id       = None
                 profit_taker_id = None
                 stop_loss_id    = None
