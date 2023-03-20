@@ -2,7 +2,7 @@ from sys import path
 
 path.append("../")
 
-from asyncio                    import gather, run, set_event_loop, sleep
+from asyncio                    import gather, sleep
 from ib_futures.async_fclient   import async_fclient
 from json                       import loads
 from quote_defs                 import QUOTE_DEFS
@@ -96,6 +96,7 @@ async def update_quote(
     entry:              float,
     max_worsening:      float,
     profit_taker_amt:   float,
+    stop_loss_amt:      float,
     order_params:       dict,
 ):
 
@@ -114,8 +115,9 @@ async def update_quote(
 
     order_params["limit_price"]         =   comp_func(base + entry, current_price + max_worsening) \
                                             if current_price else base + entry
-                                     
+
     order_params["profit_taker_price"]  = order_params["limit_price"] + profit_taker_amt
+    order_params["stop_loss_price"]     = order_params["limit_price"] + stop_loss_amt
 
     new_order_ids = await FC.submit_order(**order_params)
 
@@ -137,7 +139,8 @@ async def quote_continuously(
     max_worsening:      float,
     profit_taker_amt:   float,
     stop_loss_amt:      float,
-    duration:           int
+    duration:           int,
+    time_zone:          str
 ):
 
     # initialize state
@@ -167,8 +170,9 @@ async def quote_continuously(
         "limit_price":          None,
         "qty":                  qty,
         "profit_taker_price":   None,
-        "stop_loss_amt":        stop_loss_amt,
-        "duration":             duration
+        "stop_loss_price":      None,
+        "duration":             duration,
+        "time_zone":            time_zone
     }
 
     # start quoting
@@ -187,6 +191,7 @@ async def quote_continuously(
                 entry,
                 max_worsening,
                 profit_taker_amt,
+                stop_loss_amt,
                 order_params
             )
 
@@ -214,6 +219,8 @@ async def quote_continuously(
             await sleep(update_interval)
             await FC.get_open_orders()
 
+        pass
+
     pass
 
 
@@ -237,7 +244,7 @@ if __name__ == "__main__":
     
     FC.set_error_handler(error_handler)
     FC.set_l1_stream_handler(l1_stream_handler)
-    FC.set_open_order_handler(open_order_handler)
+    #FC.set_open_order_handler(open_order_handler)
     FC.set_order_status_handler(order_status_handler)
 
     loop = FC.get_loop()

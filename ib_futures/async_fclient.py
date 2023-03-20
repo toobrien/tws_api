@@ -6,11 +6,13 @@
 
 from asyncio        import new_event_loop
 # from functools    import partial
+from datetime       import datetime, timedelta
 from ibapi.client   import EClient
 from ibapi.contract import ComboLeg, Contract
 from ibapi.order    import Order
-from ibapi.ticktype import TickTypeEnum 
+from ibapi.ticktype import TickTypeEnum
 from ibapi.wrapper  import EWrapper
+from pytz           import timezone
 from .structs       import instrument, month_codes
 from threading      import get_ident, Thread
 from time           import sleep
@@ -130,7 +132,7 @@ class wrapper(EWrapper):
 
         super().openOrder(orderId, contract, order, orderState)
 
-        if self.handlers["open_order"]:
+        if "open_order" in self.handlers:
         
             self.handlers["open_order"](orderId, contract, order, orderState)
 
@@ -169,7 +171,7 @@ class wrapper(EWrapper):
             parentId, lastFillPrice, clientId, whyHeld, mktCapPrice
         )
 
-        if self.handlers["order_status"]:
+        if "order_status" in self.handlers:
         
             self.handlers["order_status"](
                 orderId, status, filled, remaining, avgFillPrice, permId,
@@ -183,6 +185,9 @@ class wrapper(EWrapper):
     
 
     # L1 data functions: tickPrice, tickSize, tickValue, tickGeneric
+
+    # no error checking for whether l1/l2 stream handlers are set, so
+    # set them before calling get_.*_stream
 
     def tickPrice(self, reqId, tickType, price, attrib):
 
@@ -510,16 +515,16 @@ class async_fclient(wrapper, EClient):
 
     async def reqOpenOrders(self):
 
-        self.single_futures["reqOpenOrders"] = self.loop.create_future()
+        self.single_futures["openOrderEnd"] = self.loop.create_future()
 
         self.schedule(
             super().reqOpenOrders,
             None
         )
 
-        await self.single_futures["reqOpenOrders"]
+        await self.single_futures["openOrderEnd"]
 
-        self.single_futures["reqOpenOrders"] = None
+        self.single_futures["openOrderEnd"] = None
 
 
     async def reqContractDetails(self, kwargs):
@@ -846,8 +851,9 @@ class async_fclient(wrapper, EClient):
         limit_price:        float   = None,
         qty:                int     = 0,
         profit_taker_price: float   = None,
-        stop_loss_amt:      float   = None,
-        duration:           int     = None
+        stop_loss_price:    float   = None,
+        duration:           int     = None,
+        time_zone:          str     = None
     ):
 
         parent_id   = order_id
@@ -866,12 +872,15 @@ class async_fclient(wrapper, EClient):
             o.action        = action
             o.orderType     = type
             o.totalQuantity = qty
-            o.transmit      = not (profit_taker_price or stop_loss_amt)
+            o.transmit      = not (profit_taker_price or stop_loss_price)
 
             bracket.append(o)
 
             if duration:
 
+                #dt          = (datetime.now() + timedelta(seconds = duration)).astimezone(timezone(time_zone))
+                #ds          = dt.strftime("%Y%m%d %H:%M:%S %Z%z")
+                #o.duration  = ds
                 o.duration  = duration
                 o.tif       = "GTD"
             
@@ -890,11 +899,11 @@ class async_fclient(wrapper, EClient):
                 tp.totalQuantity        = qty
                 tp.lmtPrice             = profit_taker_price
                 tp.parentId             = parent_id
-                tp.transmit             = not stop_loss_amt
+                tp.transmit             = not stop_loss_price
                 
                 bracket.append(tp)
 
-            if stop_loss_amt:
+            if stop_loss_price:
 
                 sl                  = Order()
                 sl.orderId          = parent_id + 2
@@ -902,7 +911,8 @@ class async_fclient(wrapper, EClient):
                 sl.action           = "SELL" if action == "BUY" else "BUY"
                 sl.orderType        = "STP"
                 sl.tif              = "GTC"
-                sl.auxPrice         = stop_loss_amt
+                sl.lmtPrice         = stop_loss_price
+                sl.auxPrice         = stop_loss_price
                 sl.totalQuantity    = qty
                 sl.parentId         = parent_id
                 sl.transmit         = True
