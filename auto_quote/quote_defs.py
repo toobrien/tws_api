@@ -10,8 +10,8 @@ QUOTE_DEFS = [
         "entry":            -0.0500,
         "enabled":          True,
         "max_worsening":    0.0025,
-        "stop_loss":        0.0050,
-        "take_profit":      0.0050 
+        "profit_taker_amt": 0.0050,
+        "stop_loss_amt":    0.0050,
     },
     {
         "instrument_id":    ( "RB", "NYMEX", "single", "J23" ),
@@ -22,7 +22,7 @@ QUOTE_DEFS = [
         "entry":            0.0500,
         "enabled":          False,
         "max_worsening":    -0.0025,
-        "stop_loss":        0.0050,
-        "take_profit":      -0.0050,
+        "profit_taker_amt": -0.0050,
+        "stop_loss_amt":    0.0050
     },
 ]

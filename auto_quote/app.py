@@ -2,7 +2,7 @@ from sys import path
 
 path.append("../")
 
-from asyncio                    import gather, run, sleep
+from asyncio                    import gather, run, set_event_loop, sleep
 from ib_futures.async_fclient   import async_fclient
 from json                       import loads
 from quote_defs                 import QUOTE_DEFS
@@ -90,28 +90,34 @@ def order_status_handler(
 ##############
 
 
-def update_quote(
+async def update_quote(
     l1_handle:          int,
     action:             str,
     entry:              float,
     max_worsening:      float,
-    take_profit:        float,
+    profit_taker_amt:   float,
     order_params:       dict,
 ):
 
     l1_latest                       = L1_DATA[l1_handle]
     best_bid                        = l1_latest["BID"]
     best_ask                        = l1_latest["ASK"]
+
+    if  (not best_bid and action == "BUY") or \
+        (not best_ask and action == "SELL"):
+
+        return None
+
     current_price                   = order_params["limit_price"]
     base                            = best_bid  if action == "BUY" else best_ask
     comp_func                       = min       if action == "BUY" else max
 
-    order_params["limit_price"] =   comp_func(base + entry, current_price + max_worsening) \
-                                    if current_price else base + entry
+    order_params["limit_price"]         =   comp_func(base + entry, current_price + max_worsening) \
+                                            if current_price else base + entry
                                      
-    order_params["take_profit"] = order_params["limit_price"] + take_profit
+    order_params["profit_taker_price"]  = order_params["limit_price"] + profit_taker_amt
 
-    new_order_ids = FC.submit_order(**order_params)
+    new_order_ids = await FC.submit_order(**order_params)
 
     return (
         new_order_ids["parent_id"],
@@ -121,16 +127,16 @@ def update_quote(
 
 
 async def quote_continuously(
-    instrument_id:  tuple,
-    max_fills:      int,
-    qty:            int,
-    action:         str,
-    entry:          float,
-    enabled:        bool,
-    max_worsening:  float,
-    stop_loss:      float,
-    take_profit:    float,
-    duration:       int
+    instrument_id:      tuple,
+    max_fills:          int,
+    qty:                int,
+    action:             str,
+    entry:              float,
+    enabled:            bool,
+    max_worsening:      float,
+    profit_taker_amt:   float,
+    stop_loss_amt:      float,
+    duration:           int
 ):
 
     # initialize state
@@ -138,9 +144,9 @@ async def quote_continuously(
     update_interval = duration + 1
     fills           = 0
 
-    l1_handle               = FC.open_l1_stream(instrument_id)
+    l1_handle               = await FC.open_l1_stream(instrument_id)
     L1_HANDLES[l1_handle]   = instrument_id
-    
+
     L1_DATA[l1_handle] = {
         "BID":  None,
         "ASK":  None,
@@ -158,8 +164,9 @@ async def quote_continuously(
         "order_id":             None,
         "limit_price":          None,
         "qty":                  qty,
-        "stop_loss":            stop_loss,
-        "take_profit":          None,
+        "profit_taker_price":   None,
+        "stop_loss_amt":        stop_loss_amt,
+        "duration":             duration
     }
 
     # start quoting
@@ -169,17 +176,23 @@ async def quote_continuously(
         if  not parent_id or \
             ORDER_STATES[parent_id]["status"] == "Cancelled":
 
-            parent_id                   = FC.get_next_order_id()
-            order_params["parent_id"]   = parent_id
+            parent_id                   = await FC.get_next_order_id()
+            order_params["order_id"]    = parent_id
 
-            parent_id, profit_taker_id, stop_loss_id = update_quote(
+            res = await update_quote(
                 l1_handle,
                 action,
                 entry,
                 max_worsening,
-                take_profit,
+                profit_taker_amt,
                 order_params
             )
+
+            if res:
+
+                parent_id       = res[0]
+                stop_loss_id    = res[1]
+                profit_taker_id = res[2]
 
         elif ORDER_STATES[parent_id]["status"] == "Filled":
 
@@ -225,4 +238,8 @@ if __name__ == "__main__":
     FC.set_open_order_handler(open_order_handler)
     FC.set_order_status_handler(order_status_handler)
 
-    run(main())
+    loop = FC.get_loop()
+    
+    loop.run_until_complete(main())
+
+   

@@ -685,6 +685,8 @@ class async_fclient(wrapper, EClient):
                 instr.contract                          = con
                 self.instrument_store[instrument_id]    = instr
 
+        con = self.instrument_store[instrument_id].contract
+        
         return con
 
 
@@ -811,7 +813,7 @@ class async_fclient(wrapper, EClient):
 
     async def get_next_order_id(self):
 
-        return await self.reqIds()
+        return await self.reqIds({ "numIds": "" })
 
 
     async def get_open_orders(self):
@@ -843,7 +845,7 @@ class async_fclient(wrapper, EClient):
         limit_price:        float   = None,
         qty:                int     = 0,
         profit_taker_price: float   = None,
-        stop_loss_price:    float   = None,
+        stop_loss_amt:      float   = None,
         duration:           int     = None
     ):
 
@@ -854,22 +856,22 @@ class async_fclient(wrapper, EClient):
             "profit_taker_id":  None,
             "stop_loss_id":     None
         }
-        bracket = []
+        o           = Order()
+        bracket     = []
 
         if con and parent_id:
 
-            o               = Order()
             o.orderId       = parent_id
             o.action        = action
             o.orderType     = type
             o.totalQuantity = qty
-            o.transmit      = not (profit_taker_price or stop_loss_price)
+            o.transmit      = not (profit_taker_price or stop_loss_amt)
 
             if duration:
 
                 o.duration = duration
 
-            if profit_taker_price or stop_loss_price:
+            if profit_taker_price or stop_loss_amt:
 
                 bracket.append(o)
 
@@ -883,18 +885,18 @@ class async_fclient(wrapper, EClient):
                 tp.totalQuantity        = qty
                 tp.lmtPrice             = profit_taker_price
                 tp.parentId             = parent_id
-                tp.transmit             = not stop_loss_price
+                tp.transmit             = not stop_loss_amt
                 
                 bracket.append(tp)
 
-            if stop_loss_price:
+            if stop_loss_amt:
 
                 sl                  = Order()
                 sl.orderId          = parent_id + 2
                 ids["stop_loss_id"] = parent_id + 2
                 sl.action           = "SELL" if action == "BUY" else "BUY"
                 sl.orderType        = "STP"
-                sl.auxPrice         = stop_loss_price
+                sl.auxPrice         = stop_loss_amt
                 sl.totalQuantity    = qty
                 sl.parentId         = parent_id
                 sl.transmit         = True
