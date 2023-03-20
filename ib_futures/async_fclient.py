@@ -841,6 +841,7 @@ class async_fclient(wrapper, EClient):
         instrument_id:      tuple,
         action:             str,
         type:               str,
+        time_in_force:      str     = "DAY",
         order_id:           int     = None,
         limit_price:        float   = None,
         qty:                int     = 0,
@@ -871,7 +872,12 @@ class async_fclient(wrapper, EClient):
 
             if duration:
 
-                o.duration = duration
+                o.duration  = duration
+                o.tif       = "GTD"
+            
+            else:
+
+                o.tif = time_in_force
 
             if profit_taker_price:
 
@@ -880,6 +886,7 @@ class async_fclient(wrapper, EClient):
                 ids["profit_taker_id"]  = parent_id + 1
                 tp.action               = "SELL" if action == "BUY" else "BUY"
                 tp.orderType            = "LMT"
+                tp.tif                  = "GTC"
                 tp.totalQuantity        = qty
                 tp.lmtPrice             = profit_taker_price
                 tp.parentId             = parent_id
@@ -894,6 +901,7 @@ class async_fclient(wrapper, EClient):
                 ids["stop_loss_id"] = parent_id + 2
                 sl.action           = "SELL" if action == "BUY" else "BUY"
                 sl.orderType        = "STP"
+                sl.tif              = "GTC"
                 sl.auxPrice         = stop_loss_amt
                 sl.totalQuantity    = qty
                 sl.parentId         = parent_id
