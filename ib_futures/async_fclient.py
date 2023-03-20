@@ -686,7 +686,7 @@ class async_fclient(wrapper, EClient):
                 self.instrument_store[instrument_id]    = instr
 
         con = self.instrument_store[instrument_id].contract
-        
+
         return con
 
 
@@ -856,24 +856,22 @@ class async_fclient(wrapper, EClient):
             "profit_taker_id":  None,
             "stop_loss_id":     None
         }
-        o           = Order()
         bracket     = []
 
         if con and parent_id:
 
+            o               = Order()
             o.orderId       = parent_id
             o.action        = action
             o.orderType     = type
             o.totalQuantity = qty
             o.transmit      = not (profit_taker_price or stop_loss_amt)
 
+            bracket.append(o)
+
             if duration:
 
                 o.duration = duration
-
-            if profit_taker_price or stop_loss_amt:
-
-                bracket.append(o)
 
             if profit_taker_price:
 
@@ -924,14 +922,15 @@ class async_fclient(wrapper, EClient):
 
         pass
 
+        for order in bracket:
         
-        self.placeOrder(
-            {
-                "orderId":  parent_id, 
-                "contract": con, 
-                "order":    o if not bracket else bracket
-            }
-        )
+            self.placeOrder(
+                {
+                    "orderId":  order.orderId,
+                    "contract": con,
+                    "order":    order
+                }
+            )
 
         pass
 
