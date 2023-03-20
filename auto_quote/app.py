@@ -84,20 +84,6 @@ def order_status_handler(
     order_state["why_held"]         = whyHeld
     order_state["mktCapPrice"]      = mktCapPrice
 
-    print(
-        f"orderId: {orderId}\t",
-        f"status: {status}\t",
-        f"filled: {filled}\t",
-        f"remaining: {remaining}\t",
-        f"avgFillPrice: {avgFillPrice}\t",
-        f"permId: {permId}\t",
-        f"parentId: {parentId}\t",
-        f"lastFillPrice: {lastFillPrice}\t",
-        f"clientId: {clientId}\t",
-        f"whyHeld: {whyHeld}\t",
-        f"mktCapPrice: {mktCapPrice}"
-    )
-
 
 ##############
 ## QUOTING ##
@@ -181,7 +167,7 @@ async def quote_continuously(
     while (enabled):
 
         if  not parent_id or \
-            ORDER_STATES[parent_id]["status"] == "cancelled":
+            ORDER_STATES[parent_id]["status"] == "Cancelled":
 
             parent_id                   = FC.get_next_order_id()
             order_params["parent_id"]   = parent_id
@@ -195,10 +181,10 @@ async def quote_continuously(
                 order_params
             )
 
-        elif ORDER_STATES[parent_id]["filled"]:
+        elif ORDER_STATES[parent_id]["status"] == "Filled":
 
-            if  (profit_taker_id and ORDER_STATES[profit_taker_id]["status"] == "filled") or \
-                (stop_loss_id    and ORDER_STATES[stop_loss_id]["status"]    == "filled"):
+            if  (profit_taker_id and ORDER_STATES[profit_taker_id]["status"] == "Filled") or \
+                (stop_loss_id    and ORDER_STATES[stop_loss_id]["status"]    == "Filled"):
 
                 fills += 1
 
@@ -238,6 +224,5 @@ if __name__ == "__main__":
     FC.set_l1_stream_handler(l1_stream_handler)
     FC.set_open_order_handler(open_order_handler)
     FC.set_order_status_handler(order_status_handler)
-    FC.set_open_order_end_handler(open_order_end_handler)
 
     run(main())
