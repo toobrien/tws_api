@@ -149,8 +149,7 @@ async def quote_continuously(
     max_worsening:      float,
     profit_taker_amt:   float,
     stop_loss_amt:      float,
-    duration:           int,
-    time_zone:          str
+    duration:           int
 ):
 
     # initialize state
@@ -181,8 +180,7 @@ async def quote_continuously(
         "qty":                  qty,
         "profit_taker_price":   None,
         "stop_loss_price":      None,
-        "duration":             duration,
-        "time_zone":            time_zone
+        "duration":             duration
     }
 
     # start quoting

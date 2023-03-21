@@ -12,8 +12,7 @@ QUOTE_DEFS = [
         "enabled":          True,
         "max_worsening":    0.0025,
         "profit_taker_amt": 0.0040,
-        "stop_loss_amt":    -0.080,
-        "time_zone":        "US/Eastern"
+        "stop_loss_amt":    -0.080
     },
     {
         "instrument_id":    ( "RB", "NYMEX", "single", "K23" ),
@@ -26,7 +25,6 @@ QUOTE_DEFS = [
         "enabled":          False,
         "max_worsening":    -0.0025,
         "profit_taker_amt": -0.0040,
-        "stop_loss_amt":    0.0080,
-        "time_zone":        "US/Eastern"
+        "stop_loss_amt":    0.0080
     },
 ]
