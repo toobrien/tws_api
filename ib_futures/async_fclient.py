@@ -15,7 +15,7 @@ from ibapi.wrapper  import EWrapper
 from pytz           import timezone
 from .structs       import instrument, month_codes
 from threading      import get_ident, Thread
-from time           import sleep
+from time           import sleep, time
 
 
 # sleep before any call to EClient
@@ -372,7 +372,7 @@ class async_fclient(wrapper, EClient):
 
         # for some reason there is a delay in connecting, and isConnected() is not reliable...
 
-        sleep(0.5)
+        sleep(1)
 
         thread = Thread(target=self.run)
 
@@ -878,11 +878,9 @@ class async_fclient(wrapper, EClient):
 
             if duration:
 
-                dt          = (datetime.now() + timedelta(seconds = duration)).astimezone(timezone(time_zone))
-                ds          = dt.strftime("%Y%m%d %H:%M:%S %Z")
-                o.duration  = ds
-                #o.duration  = duration
-                o.tif       = "GTD"
+                ds              = (datetime.utcnow() + timedelta(seconds = duration)).strftime("%Y%m%d-%H:%M:%S")
+                o.goodTillDate  = ds
+                o.tif           = "GTD"
             
             else:
 

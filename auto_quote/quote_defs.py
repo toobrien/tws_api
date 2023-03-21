@@ -2,10 +2,10 @@
 
 QUOTE_DEFS = [
     {
-        "instrument_id":    ( "RB", "NYMEX", "single", "J23" ),
+        "instrument_id":    ( "RB", "NYMEX", "single", "K23" ),
         "max_fills":        1,
         "qty":              1,
-        "duration":         30,
+        "duration":         10,
         "action":           "BUY",
         "time_in_force":    "GTD",
         "entry":            -0.0500,
@@ -16,7 +16,7 @@ QUOTE_DEFS = [
         "time_zone":        "US/Eastern"
     },
     {
-        "instrument_id":    ( "RB", "NYMEX", "single", "J23" ),
+        "instrument_id":    ( "RB", "NYMEX", "single", "K23" ),
         "max_fills":        1,
         "qty":              1,
         "duration":         3,

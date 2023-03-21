@@ -117,7 +117,7 @@ async def update_quote(
     if  (not best_bid and action == "BUY") or \
         (not best_ask and action == "SELL"):
 
-        return None
+        return ( None, None, None )
 
     current_price                   = order_params["limit_price"]
     base                            = best_bid  if action == "BUY" else best_ask
@@ -190,12 +190,12 @@ async def quote_continuously(
     while (enabled):
 
         if  not parent_id or \
-            ORDER_STATES[parent_id]["status"] == "Cancelled":
+            ORDER_STATES[parent_id]["status"] == "Expired":
 
             parent_id                   = await FC.get_next_order_id()
             order_params["order_id"]    = parent_id
 
-            res = await update_quote(
+            parent_id, profit_taker_id, stop_loss_id = await update_quote(
                 l1_handle,
                 action,
                 entry,
@@ -204,12 +204,6 @@ async def quote_continuously(
                 stop_loss_amt,
                 order_params
             )
-
-            if res:
-
-                parent_id       = res[0]
-                stop_loss_id    = res[1]
-                profit_taker_id = res[2]
 
         elif ORDER_STATES[parent_id]["status"] == "Filled":
 
