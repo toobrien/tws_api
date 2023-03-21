@@ -22,7 +22,17 @@ ORDER_STATES    = {}
 
 def error_handler(reqId, errorCode, errorString, advancedOrderRejectJson = ""):
 
-    print(f"reqId: {reqId}\tcode: {errorCode}\tmsg: {errorString}\tadv: {advancedOrderRejectJson}")
+    parts = [
+                f"reqId: {reqId}",
+                f"code: {errorCode}",
+                f"msg: {errorString}"
+            ]
+
+    if advancedOrderRejectJson:
+
+        parts.append(f"adv: {advancedOrderRejectJson}")
+    
+    print("\t".join(parts))
 
 
 def l1_stream_handler(args):

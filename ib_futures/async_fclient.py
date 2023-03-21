@@ -878,10 +878,10 @@ class async_fclient(wrapper, EClient):
 
             if duration:
 
-                #dt          = (datetime.now() + timedelta(seconds = duration)).astimezone(timezone(time_zone))
-                #ds          = dt.strftime("%Y%m%d %H:%M:%S %Z%z")
-                #o.duration  = ds
-                o.duration  = duration
+                dt          = (datetime.now() + timedelta(seconds = duration)).astimezone(timezone(time_zone))
+                ds          = dt.strftime("%Y%m%d %H:%M:%S %Z")
+                o.duration  = ds
+                #o.duration  = duration
                 o.tif       = "GTD"
             
             else:
