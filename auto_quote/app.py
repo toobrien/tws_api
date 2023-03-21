@@ -223,8 +223,6 @@ async def quote_continuously(
 
         pass
 
-    pass
-
 
 ##################
 ## MAIN PROGRAM ##
