@@ -190,7 +190,7 @@ async def quote_continuously(
     while (enabled):
 
         if  not parent_id or \
-            ORDER_STATES[parent_id]["status"] == "Expired":
+            ORDER_STATES[parent_id]["status"] == "Cancelled":
 
             parent_id                   = await FC.get_next_order_id()
             order_params["order_id"]    = parent_id
