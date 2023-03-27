@@ -27,39 +27,267 @@ def error_handler(reqId, errorCode, errorString, advancedOrderRejectJson = ""):
 
     # connection and market data related errors
 
-    if errorCode == 1100:
+    if errorCode == 109:
+
+        # Price is out of the range defined by the Percentage setting at order defaults frame. The order will not be transmitted. 
+
+        # Price entered is outside the range of prices set in TWS or IB Gateway Order Precautionary Settings 
+
+        pass
+
+    elif errorCode == 133:
+
+        # Submit new order failed.
+
+        pass
+
+    elif errorCode == 134:
+
+        # Modify order failed.
+
+        pass
+
+    elif errorCode == 136:
+
+        # This order cannot be cancelled.
+
+        pass
+
+    elif errorCode == 161:
+
+        # Cancel attempted when order is not in a cancellable state. Order permId = 
+
+        # An attempt was made to cancel an order not active at the time.
+
+        pass
+
+    elif errorCode == 163:
+
+        # The price specified would violate the percentage constraint specified in the default order settings.
+        
+        # The order price entered is outside the allowable range specified in the Order Precautionary Settings of TWS or IB Gateway
+
+        pass
+
+    elif errorCode == 164:
+
+        # There is no market data to check price percent violations.
+
+        # No market data is available for the specified contract to determine whether the specified price is outside the price percent precautionary order setting. 
+
+        pass
+
+    elif errorCode == 201:
+
+        # Order rejected - Reason: 
+
+        # An attempted order was rejected by the IB servers.
+        # See Order Placement Considerations for additional information/considerations for these errors.
+
+        pass
+
+    elif errorCode == 202:
+
+        # Order cancelled - Reason:
+
+        # An active order on the IB server was cancelled. See Order Placement Considerations for additional information/considerations for these errors.
+
+        pass
+
+    elif errorCode == 320:
+
+        # Server error when reading an API client request. 
+
+        pass
+
+    elif errorCode == 321:
+
+        # Server error when validating an API client request. 
+
+        pass
+
+    elif errorCode == 322:
+
+        #Server error when processing an API client request. 
+
+        pass
+
+    elif errorCode == 323:
+
+        # Server error: cause - s 
+
+        pass
+
+    elif errorCode == 334:
+
+        # Invalid Good Till Date order
+
+        pass
+
+    elif errorCode == 336:
+
+        # The time or time zone is invalid.
+        # The correct format is hh:mm:ss xxx where xxx is an optionally specified time-zone.
+        # E.g.: 15:59:00 EST Note that there is a space between the time and the time zone. 
+        # If no time zone is specified, local time is assumed. 
+
+        pass
+
+    elif errorCode == 337:
+
+        # The date, time, or time-zone entered is invalid.
+        # The correct format is yyyymmdd hh:mm:ss xxx where yyyymmdd and xxx are optional.
+        # E.g.: 20031126 15:59:00 ESTNote that there is a space between the date and time, and between the time and time-zone. 
+
+        pass
+
+    elif errorCode == 343:
+
+        # The date, time, or time-zone entered is invalid. The correct format is yyyymmdd hh:mm:ss xxx 
+
+        pass
+
+    elif errorCode == 391:
+
+        # The time or time-zone entered is invalid. The correct format is hh:mm:ss xxx 
+
+        pass
+
+    elif errorCode == 504:
+
+        # Not connected.
+
+        # You are trying to perform a request without properly connecting and/or after connection to the TWS has been broken probably due to an unhandled exception within your client application. 
+
+        pass
+
+    elif errorCode == 1100:
+
+        # Connectivity between IB and the TWS has been lost.
+
+        # Your TWS/IB Gateway has been disconnected from IB servers.
+        # This can occur because of an internet connectivity issue, a nightly reset of the IB servers, or a competing session. 
+
+        pass
+
+    elif errorCode == 1101:
+
+        # Connectivity between IB and TWS has been restored- data lost.
+
+        # The TWS/IB Gateway has successfully reconnected to IB's servers.
+        # Your market data requests have been lost and need to be re-submitted. 
 
         pass
 
     elif errorCode == 1102:
 
+        # Connectivity between IB and TWS has been restored- data maintained. 
+
+        # The TWS/IB Gateway has successfully reconnected to IB's servers. 
+        # Your market data requests have been recovered and there is no need for you to re-submit them. 
+
+        pass
+
+    elif errorCode == 2102:
+
+        # Unable to modify this order as it is still being processed. 
+
+        # If you attempt to modify an order before it gets processed by the system, the modification will be rejected.
+        # Wait until the order has been fully processed before modifying it. See Placing Orders for further details. 
+
         pass
 
     elif errorCode == 2103:
+
+        # A market data farm is disconnected.
+
+        # Indicates a connectivity problem to an IB server.
+        # Outside of the nightly IB server reset, this typically indicates an underlying ISP connectivity issue. 
 
         pass
 
     elif errorCode == 2104:
 
+        # Market data farm connection is OK 
+
+        # A notification that connection to the market data server is ok.
+        # This is a notification and not a true error condition, and is expected on first establishing connection
+
         pass
 
     elif errorCode == 2105:
+
+        # A historical data farm is disconnected.
+
+        # Indicates a connectivity problem to an IB server.
+        # Outside of the nightly IB server reset, this typically indicates an underlying ISP connectivity issue. 
 
         pass
 
     elif errorCode == 2106:
 
+        # A historical data farm is connected.
+
+        # A notification that connection to the market data server is ok.
+        # This is a notification and not a true error condition, and is expected on first establishing connection. 
+
+        pass
+
+    elif errorCode == 2107:
+
+        # A historical data farm connection has become inactive but should be available upon demand. 
+
+        # Whenever a connection to the historical data farm is not being used because there is not an active historical data request, the connection will go inactive in IB Gateway. 
+        # This does not indicate any connectivity issue or problem with IB Gateway. As soon as a historical data request is made the status will change back to active. 
+
         pass
 
     elif errorCode == 2108:
+
+        # A market data farm connection has become inactive but should be available upon demand. 
+
+        # Whenever a connection to our data farms is not needed, it will become dormant.
+        # There is nothing abnormal nor wrong with your client application nor with the TWS.
+        # You can safely ignore this message.
+
+        pass
+
+    elif errorCode == 2110:
+
+        # Connectivity between TWS and server is broken. It will be restored automatically.
+
+        # Indicates a connectivity problem between TWS or IBG and the IB server.
+        # This will usually only occur during the IB nightly server reset; cases at other times indicate a problem in the local ISP connectivity. 
 
         pass
 
     elif errorCode == 2157:
 
+        # ???
+
         pass
 
     elif errorCode == 2158:
+
+        # Sec-def data farm connection is OK 
+
+        # A notification that connection to the Security definition data server is ok.
+        # This is a notification and not a true error condition, and is expected on first establishing connection. 
+
+        pass
+
+    elif errorCode == 10006:
+
+        # Missing parent order.
+
+        # The parent order ID specified cannot be found.
+        # In some cases this can occur with bracket orders if the child order is placed immediately after the parent order; a brief pause of 50 ms or less will be necessary before the child order is transmitted to TWS/IBG. 
+
+        pass
+
+    elif errorCode == 10148:
+
+        # OrderId <OrderId> that needs to be cancelled can not be cancelled, state:
 
         pass
 
