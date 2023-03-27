@@ -93,11 +93,13 @@ def l1_stream_handler(args):
         quote["LAST"] = args["price"]
 
 
-def open_order_handler():
+def open_order_handler(orderId, contract, order, orderState):
 
     # not sure how much needs implementing here
 
-    pass
+    if orderState.status == "Submitted":
+    
+        pass
 
 
 def order_status_handler(
@@ -128,12 +130,9 @@ def order_status_handler(
     order_state["parentId"]         = parentId
     order_state["lastFillPrice"]    = lastFillPrice
     order_state["clientId"]         = clientId
-    order_state["why_held"]         = whyHeld
+    order_state["whyHeld"]          = whyHeld
     order_state["mktCapPrice"]      = mktCapPrice
 
-    if parentId == 0:
-    
-        print(f"{orderId}\t{status}\t{parentId}")
 
 ##############
 ## QUOTING ##
@@ -306,7 +305,7 @@ async def main(fc: fclient):
 
     fc.set_error_handler(error_handler)
     fc.set_l1_stream_handler(l1_stream_handler)
-    #fc.set_open_order_handler(open_order_handler)
+    fc.set_open_order_handler(open_order_handler)
     fc.set_order_status_handler(order_status_handler)
    
     await gather(*[ quote_continuously(fc, **qdef) for qdef in QUOTE_DEFS ])

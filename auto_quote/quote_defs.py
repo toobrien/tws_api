@@ -9,10 +9,10 @@ QUOTE_DEFS = [
         "duration":         10,
         "action":           "BUY",
         "time_in_force":    "DAY",
-        "entry":            -0.0040,
+        "entry":            -0.0240,
         "enabled":          True,
         "max_worsening":    0.0020,
-        "profit_taker_amt": 0.0040,
+        "profit_taker_amt": 0.0030,
         "stop_loss_amt":    -0.080,
         "inactive_hours":   [ ( "05:30:00", "13:00:00" ) ]
     },
