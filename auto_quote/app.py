@@ -3,15 +3,19 @@ from sys import path
 path.append("../")
 
 from asyncio            import gather, sleep
+from datetime           import datetime
 from ib_futures.fclient import fclient
 from json               import loads
 from quote_defs         import QUOTE_DEFS
+from typing             import List
 
 
-CONFIG          = loads(open("./config.json", "r").read())
-L1_HANDLES      = {}
-L1_DATA         = {}
-ORDER_STATES    = {}
+CONFIG              = loads(open("./config.json", "r").read())
+L1_HANDLES          = {}
+L1_DATA             = {}
+ORDER_STATES        = {}
+MARKET_DATA_OK      = True
+TWS_CONNECTION_OK   = True
 
 
 ###############################
@@ -21,7 +25,47 @@ ORDER_STATES    = {}
 
 def error_handler(reqId, errorCode, errorString, advancedOrderRejectJson = ""):
 
-    if advancedOrderRejectJson != "":
+    # connection and market data related errors
+
+    if errorCode == 1100:
+
+        pass
+
+    elif errorCode == 1102:
+
+        pass
+
+    elif errorCode == 2103:
+
+        pass
+
+    elif errorCode == 2104:
+
+        pass
+
+    elif errorCode == 2105:
+
+        pass
+
+    elif errorCode == 2106:
+
+        pass
+
+    elif errorCode == 2108:
+
+        pass
+
+    elif errorCode == 2157:
+
+        pass
+
+    elif errorCode == 2158:
+
+        pass
+
+    # print message
+
+    if advancedOrderRejectJson == "":
 
         print(f"reqId: {reqId}\tcode: {errorCode}\tmsg: {errorString}")
 
@@ -87,10 +131,35 @@ def order_status_handler(
     order_state["why_held"]         = whyHeld
     order_state["mktCapPrice"]      = mktCapPrice
 
+    if parentId == 0:
+    
+        print(f"{orderId}\t{status}\t{parentId}")
 
 ##############
 ## QUOTING ##
 ##############
+
+
+def check_hours(inactive_hours):
+
+    active_hours = True
+
+    if inactive_hours:
+
+        for rng in inactive_hours:
+
+            start   = rng[0]
+            end     = rng[1]
+
+            now = datetime.now().strftime("%H:%M:%S")
+
+            if start < now < end:
+
+                active_hours = False
+
+                break
+
+    return active_hours
 
 
 async def update_quote(
@@ -119,9 +188,8 @@ async def update_quote(
 
     order_params["limit_price"]         =   comp_func(base + entry, current_price + max_worsening) \
                                             if current_price else base + entry
-
-    order_params["profit_taker_price"]  = order_params["limit_price"] + profit_taker_amt
-    order_params["stop_loss_price"]     = order_params["limit_price"] + stop_loss_amt
+    order_params["profit_taker_price"]  =   order_params["limit_price"] + profit_taker_amt
+    order_params["stop_loss_price"]     =   order_params["limit_price"] + stop_loss_amt
 
     new_order_ids = await fc.submit_order(**order_params)
 
@@ -144,13 +212,15 @@ async def quote_continuously(
     max_worsening:      float,
     profit_taker_amt:   float,
     stop_loss_amt:      float,
-    duration:           int
+    update_interval:    int,
+    duration:           int,
+    inactive_hours:     List
 ):
 
     # initialize state
 
-    update_interval = duration + 1
-    fills           = 0
+    fills   = 0
+    enabled = enabled and check_hours(inactive_hours)
 
     l1_handle               = await fc.open_l1_stream(instrument_id)
     L1_HANDLES[l1_handle]   = instrument_id
@@ -175,18 +245,23 @@ async def quote_continuously(
         "qty":                  qty,
         "profit_taker_price":   None,
         "stop_loss_price":      None,
-        "duration":             duration
+        #"duration":             duration   # apparently can't update this, so not used
     }
 
     # start quoting
 
     while (enabled):
 
-        if  not parent_id or \
-            ORDER_STATES[parent_id]["status"] == "Cancelled":
+        if (parent_id not in ORDER_STATES or ORDER_STATES[parent_id]["status"] == "Cancelled"):
 
-            parent_id                   = await fc.get_next_order_id()
-            order_params["order_id"]    = parent_id
+            parent_id = await fc.get_next_order_id()
+
+            # else, reuse parent_id; i.e., modify existing order, rather than place new
+
+        if  (parent_id not in ORDER_STATES or ORDER_STATES[parent_id]["status"] != "Filled") and \
+            (MARKET_DATA_OK and TWS_CONNECTION_OK):
+
+            order_params["order_id"] = parent_id
 
             parent_id, profit_taker_id, stop_loss_id = await update_quote(
                 fc,
@@ -199,21 +274,23 @@ async def quote_continuously(
                 order_params
             )
 
-        elif ORDER_STATES[parent_id]["status"] == "Filled":
+        elif    parent_id in ORDER_STATES and \
+                ORDER_STATES[parent_id]["status"] == "Filled" and \
+                (
+                    (profit_taker_id and ORDER_STATES[profit_taker_id]["status"] == "Filled") or
+                    (stop_loss_id    and ORDER_STATES[stop_loss_id]["status"]    == "Filled")
+                ):
+    
+            fills += 1
 
-            if  (profit_taker_id and ORDER_STATES[profit_taker_id]["status"] == "Filled") or \
-                (stop_loss_id    and ORDER_STATES[stop_loss_id]["status"]    == "Filled"):
+            parent_id       = None
+            profit_taker_id = None
+            stop_loss_id    = None
 
-                fills += 1
-
-                parent_id       = None
-                profit_taker_id = None
-                stop_loss_id    = None
-
-        enabled = fills <= max_fills
+        enabled = (fills <= max_fills) and check_hours(inactive_hours)
         
-        if enabled: 
-            
+        if enabled:
+
             await sleep(update_interval)
             await fc.get_open_orders()
 
@@ -245,4 +322,4 @@ if __name__ == "__main__":
 
     loop = fc.get_loop()
     
-    loop.run_until_complete(main())
+    loop.run_until_complete(main(fc))
