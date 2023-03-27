@@ -1,3 +1,5 @@
 __pycache__
 .vscode
 ibapi
+auto_quote/quote_defs.py
+batch/batch.py

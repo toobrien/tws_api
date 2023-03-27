@@ -1,13 +1,21 @@
+# User calls are asynchronous in this version of fclient, 
+# primarily to enable non-blocking waits via asyncio.
+#
+# For blocking user calls use ib_futures.fclient instead.
+
+
 from asyncio        import new_event_loop
 # from functools    import partial
+from datetime       import datetime, timedelta
 from ibapi.client   import EClient
 from ibapi.contract import ComboLeg, Contract
 from ibapi.order    import Order
-from ibapi.ticktype import TickTypeEnum 
+from ibapi.ticktype import TickTypeEnum
 from ibapi.wrapper  import EWrapper
+from pytz           import timezone
 from .structs       import instrument, month_codes
 from threading      import get_ident, Thread
-from time           import sleep
+from time           import sleep, time
 
 
 # sleep before any call to EClient
@@ -47,15 +55,12 @@ class wrapper(EWrapper):
 
         print(f"{get_ident()}:wrapper:nextValidId:{orderId}")
 
-        if self.order_id_fut:
+        if self.single_futures["reqIds"]:
 
-            # annoyingly, this function doesn't use a reqId, so I can't use
-            # the typical resolve() but need this special future
-            #
-            # self.reqIds must be called synchronously for this to work
+            # self.reqIds must be called synchronously for this to work (?)
 
             self.loop.call_soon_threadsafe(
-                self.order_id_fut.set_result,
+                self.single_futures["reqIds"].set_result,
                 orderId
             )
 
@@ -125,11 +130,23 @@ class wrapper(EWrapper):
 
     def openOrder(self, orderId, contract, order, orderState):
 
-        # not sure how to implement this yet
-
-        # self.handlers["open_order"](...)
-
         super().openOrder(orderId, contract, order, orderState)
+
+        if "open_order" in self.handlers:
+        
+            self.handlers["open_order"](orderId, contract, order, orderState)
+
+
+    def openOrderEnd(self):
+
+        super().openOrderEnd()
+
+        if self.single_futures["openOrderEnd"]:
+
+            self.loop.call_soon_threadsafe(
+                self.single_futures["openOrderEnd"].set_result,
+                None
+            )
 
 
     # pairs with EClient.reqAllOpenOrders
@@ -154,7 +171,7 @@ class wrapper(EWrapper):
             parentId, lastFillPrice, clientId, whyHeld, mktCapPrice
         )
 
-        if self.handlers["order_status"]:
+        if "order_status" in self.handlers:
         
             self.handlers["order_status"](
                 orderId, status, filled, remaining, avgFillPrice, permId,
@@ -168,6 +185,9 @@ class wrapper(EWrapper):
     
 
     # L1 data functions: tickPrice, tickSize, tickValue, tickGeneric
+
+    # no error checking for whether l1/l2 stream handlers are set, so
+    # set them before calling get_.*_stream
 
     def tickPrice(self, reqId, tickType, price, attrib):
 
@@ -326,7 +346,6 @@ class fclient(wrapper, EClient):
         self.reqId          = -1
         self.results        = {}
         self.handlers       = {}
-        self.order_id_fut   = None
 
         # stores
 
@@ -341,6 +360,11 @@ class fclient(wrapper, EClient):
         self.market_depth_queue = []
         self.loop               = new_event_loop()
         self.last_exec          = -1
+        
+        self.single_futures = {
+            "reqIds":       None,
+            "openOrderEnd": None
+        }
 
         # initialize connection
 
@@ -348,7 +372,7 @@ class fclient(wrapper, EClient):
 
         # for some reason there is a delay in connecting, and isConnected() is not reliable...
 
-        sleep(0.5)
+        sleep(1)
 
         thread = Thread(target=self.run)
 
@@ -384,19 +408,17 @@ class fclient(wrapper, EClient):
         )
 
 
-    # this MUST be run synchronously through self.loop.run_until_complete
-
     async def reqIds(self, kwargs):
 
-        self.order_id_fut = self.loop.create_future()
+        self.single_futures["reqIds"] = self.loop.create_future()
         
         self.schedule(
             super().reqIds,
             kwargs
         )
 
-        order_id            = await self.order_id_fut
-        self.order_id_fut   = None
+        order_id                        = await self.single_futures["reqIds"]
+        self.single_futures["reqIds"]   = None
 
         return order_id
 
@@ -491,6 +513,20 @@ class fclient(wrapper, EClient):
             )
 
 
+    async def reqOpenOrders(self):
+
+        self.single_futures["openOrderEnd"] = self.loop.create_future()
+
+        self.schedule(
+            super().reqOpenOrders,
+            None
+        )
+
+        await self.single_futures["openOrderEnd"]
+
+        self.single_futures["openOrderEnd"] = None
+
+
     async def reqContractDetails(self, kwargs):
 
         self.reqId  += 1
@@ -506,7 +542,7 @@ class fclient(wrapper, EClient):
         return await fut
 
 
-    def update_contract_store(self, symbol:str, exchange: str):
+    async def update_contract_store(self, symbol:str, exchange: str):
 
         symbols = symbol.split(".")
 
@@ -519,13 +555,7 @@ class fclient(wrapper, EClient):
             con.exchange    = exchange
             con.currency    = "USD"
 
-            contracts = self.loop.run_until_complete(
-                            self.reqContractDetails(
-                                {
-                                    "contract": con        
-                                }
-                            )
-                        )
+            contracts = await self.reqContractDetails({ "contract": con })
 
             for contract_details in contracts:
 
@@ -538,11 +568,11 @@ class fclient(wrapper, EClient):
                 self.contract_store[contract_id] = contract_details
 
 
-    def get_contract(self, instr: instrument):
+    async def get_contract(self, instr: instrument):
         
         if instr.symbol not in self.contract_store:
 
-            self.update_contract_store(instr.symbol, instr.exchange)
+            await self.update_contract_store(instr.symbol, instr.exchange)
             
         res = None
 
@@ -645,7 +675,7 @@ class fclient(wrapper, EClient):
         return res
 
 
-    def check_contract(self, instrument_id: tuple):
+    async def check_contract(self, instrument_id: tuple):
 
         con = None
 
@@ -653,12 +683,14 @@ class fclient(wrapper, EClient):
 
             instr = instrument(instrument_id)
 
-            con = self.get_contract(instr)
+            con = await self.get_contract(instr)
 
             if con:
 
                 instr.contract                          = con
                 self.instrument_store[instrument_id]    = instr
+
+        con = self.instrument_store[instrument_id].contract
 
         return con
 
@@ -700,10 +732,10 @@ class fclient(wrapper, EClient):
         self.handlers["l2_stream"] = handler
 
 
-    def open_l1_stream(self, instrument_id: tuple):
+    async def open_l1_stream(self, instrument_id: tuple):
 
         handle  = None
-        con     = self.check_contract(instrument_id)
+        con     = await self.check_contract(instrument_id)
         
         if con:
         
@@ -725,14 +757,14 @@ class fclient(wrapper, EClient):
         self.cancelMktData({ "reqId": reqId })
 
 
-    def open_l2_stream(
+    async def open_l2_stream(
         self,
         instrument_id:  tuple,
         num_rows:       int
     ):
 
         handle  = None
-        con     = self.check_contract(instrument_id)
+        con     = await self.check_contract(instrument_id)
 
         if con:
 
@@ -757,9 +789,9 @@ class fclient(wrapper, EClient):
 
     # add all contracts for a symbol and return each term's instrument id
 
-    def get_instrument_ids(self, symbol: str, exchange: str):
+    async def get_instrument_ids(self, symbol: str, exchange: str):
 
-        self.update_contract_store(symbol, exchange)
+        await self.update_contract_store(symbol, exchange)
 
         sym_len = len(symbol)
         ids     = []
@@ -784,11 +816,24 @@ class fclient(wrapper, EClient):
     ###################
 
 
-    # not sure how to implement EWrapper.openOrder yet
+    async def get_next_order_id(self):
+
+        return await self.reqIds({ "numIds": "" })
+
+
+    async def get_open_orders(self):
+
+        await self.reqOpenOrders()
+
 
     def set_open_order_handler(self, handler):
 
         self.handlers["open_order"] = handler
+
+
+    def set_open_order_end_handler(self, handler):
+
+        self.handlers["open_order_end"] = handler
 
 
     def set_order_status_handler(self, handler):
@@ -796,25 +841,31 @@ class fclient(wrapper, EClient):
         self.handlers["order_status"] = handler
 
 
-    def submit_order(
+    async def submit_order(
         self,
         instrument_id:      tuple,
         action:             str,
         type:               str,
-        order_id:           int = None,
-        limit_price:        float = None,
-        qty:                int   = 0,
-        profit_taker_price: float = None,
-        stop_loss_price:    float = None
+        time_in_force:      str     = "DAY",
+        order_id:           int     = None,
+        limit_price:        float   = None,
+        qty:                int     = 0,
+        profit_taker_price: float   = None,
+        stop_loss_price:    float   = None,
+        duration:           int     = None
     ):
 
-        parent_id   = order_id
-        con         = self.check_contract(instrument_id)
-        ids         = None
+        parent_id       = order_id
+        con             = await self.check_contract(instrument_id)
+        ids             = {
+                            "parent_id":        parent_id,
+                            "profit_taker_id":  None,
+                            "stop_loss_id":     None
+                        }
+        bracket         = []
+        alert_strings   = [ "async_client.submit_order" ]
 
         if con and parent_id:
-
-            ids = { "parent_id": parent_id }
 
             o               = Order()
             o.orderId       = parent_id
@@ -823,6 +874,18 @@ class fclient(wrapper, EClient):
             o.totalQuantity = qty
             o.transmit      = not (profit_taker_price or stop_loss_price)
 
+            bracket.append(o)
+
+            if duration:
+
+                ds              = (datetime.utcnow() + timedelta(seconds = duration)).strftime("%Y%m%d-%H:%M:%S")
+                o.goodTillDate  = ds
+                o.tif           = "GTD"
+            
+            else:
+
+                o.tif = time_in_force
+
             if profit_taker_price:
 
                 tp                      = Order()
@@ -830,10 +893,15 @@ class fclient(wrapper, EClient):
                 ids["profit_taker_id"]  = parent_id + 1
                 tp.action               = "SELL" if action == "BUY" else "BUY"
                 tp.orderType            = "LMT"
+                tp.tif                  = "GTC"
                 tp.totalQuantity        = qty
                 tp.lmtPrice             = profit_taker_price
                 tp.parentId             = parent_id
                 tp.transmit             = not stop_loss_price
+                
+                alert_strings.append(f"tp({tp.orderId}): {tp.lmtPrice}")
+
+                bracket.append(tp)
 
             if stop_loss_price:
 
@@ -842,19 +910,27 @@ class fclient(wrapper, EClient):
                 ids["stop_loss_id"] = parent_id + 2
                 sl.action           = "SELL" if action == "BUY" else "BUY"
                 sl.orderType        = "STP"
+                sl.tif              = "GTC"
+                sl.lmtPrice         = stop_loss_price
                 sl.auxPrice         = stop_loss_price
                 sl.totalQuantity    = qty
                 sl.parentId         = parent_id
                 sl.transmit         = True
 
+                alert_strings.append(f"sl({sl.orderId}): {sl.lmtPrice}")
+
+                bracket.append(sl)
+
             if type == "MKT":
 
-                o.orderType = "MKT"
+                o.orderType     = "MKT"
+                alert_strings.insert(1, alert_strings.insert(0, f"o({parent_id}): MKT"))
 
             elif type == "LMT":
             
-                o.orderType = "LMT"
-                o.lmtPrice  = limit_price
+                o.orderType     = "LMT"
+                o.lmtPrice      = limit_price
+                alert_strings.insert(1, f"o({parent_id}): {limit_price}")
 
         else:
 
@@ -868,15 +944,17 @@ class fclient(wrapper, EClient):
 
         pass
 
-        self.placeOrder(
-            {
-                "orderId":  parent_id, 
-                "contract": con, 
-                "order":    o
-            }
-        )
+        for order in bracket:
+        
+            self.placeOrder(
+                {
+                    "orderId":  order.orderId,
+                    "contract": con,
+                    "order":    order
+                }
+            )
 
-        pass
+        print("\t".join(alert_strings))
 
         return ids
 

@@ -2,10 +2,10 @@ from sys import path
 
 path.append("../")
 
-from batch                      import BATCH
-from enum                       import IntEnum
-from ib_futures.async_fclient   import async_fclient
-from json                       import loads
+from batch              import BATCH
+from enum               import IntEnum
+from ib_futures.fclient import fclient
+from json               import loads
 
 
 CONFIG = loads(open("./config.json").read())
@@ -23,7 +23,7 @@ class b_order(IntEnum):
     enabled             = 7
     
 
-async def main():
+async def main(fc: fclient):
 
     for order in BATCH:
 
@@ -42,10 +42,10 @@ async def main():
                 "duration":             None
             }
 
-            order_id            = await FC.get_next_order_id()
+            order_id            = await fc.get_next_order_id()
             params["order_id"]  = order_id
 
-            _ = await FC.submit_order(**params)
+            _ = await fc.submit_order(**params)
 
             pass
 
@@ -54,10 +54,10 @@ async def main():
 
 if __name__ == "__main__":
 
-    FC = async_fclient(
+    fc = fclient(
         host    = CONFIG["tws"]["host"],
         port    = CONFIG["tws"]["port"],
         id      = CONFIG["tws"]["client_id"]
     )
 
-    FC.get_loop().run_until_complete(main())
+    fc.get_loop().run_until_complete(main(fc))

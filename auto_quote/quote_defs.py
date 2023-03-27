@@ -8,9 +8,9 @@ QUOTE_DEFS = [
         "duration":         10,
         "action":           "BUY",
         "time_in_force":    "GTD",
-        "entry":            -0.0050,
+        "entry":            -0.0040,
         "enabled":          True,
-        "max_worsening":    0.0025,
+        "max_worsening":    0.0020,
         "profit_taker_amt": 0.0040,
         "stop_loss_amt":    -0.080
     },

@@ -99,13 +99,7 @@ def diff_handler(args):
     pass
 
 
-if __name__ == "__main__":
-
-    fc = fclient(
-        host    = CONFIG["tws"]["host"],
-        port    = CONFIG["tws"]["port"],
-        id      = CONFIG["tws"]["client_id"]
-    )
+async def main(fc: fclient):
 
     # fc.set_market_data_type(4) // for frozen data when market is closed
 
@@ -149,7 +143,7 @@ if __name__ == "__main__":
         symbol      = parts[0]
         exchange    = parts[1]
 
-        ids = fc.get_instrument_ids(symbol, exchange)[:NUM_TERMS]
+        ids = (await fc.get_instrument_ids(symbol, exchange))[:NUM_TERMS]
 
         if "rcal" in MODE:
 
@@ -168,7 +162,7 @@ if __name__ == "__main__":
 
         for instrument_id in ids:
 
-            handle = fc.open_l1_stream(instrument_id)
+            handle = await fc.open_l1_stream(instrument_id)
 
             if (handle):
             
@@ -195,3 +189,16 @@ if __name__ == "__main__":
         host = CONFIG["hostname"],
         port = CONFIG["port"]
     )
+
+
+if __name__ == "__main__":
+
+    fc = fclient(
+        host    = CONFIG["tws"]["host"],
+        port    = CONFIG["tws"]["port"],
+        id      = CONFIG["tws"]["client_id"]
+    )
+
+    loop = fc.get_loop()
+
+    loop.run_until_complete(main(fc))

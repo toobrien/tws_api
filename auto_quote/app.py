@@ -2,14 +2,13 @@ from sys import path
 
 path.append("../")
 
-from asyncio                    import gather, sleep
-from ib_futures.async_fclient   import async_fclient
-from json                       import loads
-from quote_defs                 import QUOTE_DEFS
+from asyncio            import gather, sleep
+from ib_futures.fclient import fclient
+from json               import loads
+from quote_defs         import QUOTE_DEFS
 
 
 CONFIG          = loads(open("./config.json", "r").read())
-FC              = None
 L1_HANDLES      = {}
 L1_DATA         = {}
 ORDER_STATES    = {}
@@ -52,8 +51,6 @@ def l1_stream_handler(args):
     elif tick_type == "LAST":
 
         quote["LAST"] = args["price"]
-    
-    pass
 
 
 def open_order_handler():
@@ -101,6 +98,7 @@ def order_status_handler(
 
 
 async def update_quote(
+    fc:                 fclient,
     l1_handle:          int,
     action:             str,
     entry:              float,
@@ -129,7 +127,7 @@ async def update_quote(
     order_params["profit_taker_price"]  = order_params["limit_price"] + profit_taker_amt
     order_params["stop_loss_price"]     = order_params["limit_price"] + stop_loss_amt
 
-    new_order_ids = await FC.submit_order(**order_params)
+    new_order_ids = await fc.submit_order(**order_params)
 
     return (
         new_order_ids["parent_id"],
@@ -139,6 +137,7 @@ async def update_quote(
 
 
 async def quote_continuously(
+    fc:                 fclient,
     instrument_id:      tuple,
     max_fills:          int,
     qty:                int,
@@ -157,7 +156,7 @@ async def quote_continuously(
     update_interval = duration + 1
     fills           = 0
 
-    l1_handle               = await FC.open_l1_stream(instrument_id)
+    l1_handle               = await fc.open_l1_stream(instrument_id)
     L1_HANDLES[l1_handle]   = instrument_id
 
     L1_DATA[l1_handle] = {
@@ -190,10 +189,11 @@ async def quote_continuously(
         if  not parent_id or \
             ORDER_STATES[parent_id]["status"] == "Cancelled":
 
-            parent_id                   = await FC.get_next_order_id()
+            parent_id                   = await fc.get_next_order_id()
             order_params["order_id"]    = parent_id
 
             parent_id, profit_taker_id, stop_loss_id = await update_quote(
+                fc,
                 l1_handle,
                 action,
                 entry,
@@ -219,7 +219,7 @@ async def quote_continuously(
         if enabled: 
             
             await sleep(update_interval)
-            await FC.get_open_orders()
+            await fc.get_open_orders()
 
         pass
 
@@ -229,26 +229,24 @@ async def quote_continuously(
 ##################
 
 
-async def main():
+async def main(fc: fclient):
 
-    await gather(*[ quote_continuously(**qdef) for qdef in QUOTE_DEFS ])
+    fc.set_error_handler(error_handler)
+    fc.set_l1_stream_handler(l1_stream_handler)
+    #fc.set_open_order_handler(open_order_handler)
+    fc.set_order_status_handler(order_status_handler)
+   
+    await gather(*[ quote_continuously(fc, **qdef) for qdef in QUOTE_DEFS ])
 
 
 if __name__ == "__main__":
 
-    FC = async_fclient(
+    fc = fclient(
         host    = CONFIG["tws"]["host"],
         port    = CONFIG["tws"]["port"],
         id      = CONFIG["tws"]["client_id"]
     )
-    
-    FC.set_error_handler(error_handler)
-    FC.set_l1_stream_handler(l1_stream_handler)
-    #FC.set_open_order_handler(open_order_handler)
-    FC.set_order_status_handler(order_status_handler)
 
-    loop = FC.get_loop()
+    loop = fc.get_loop()
     
     loop.run_until_complete(main())
-
-   

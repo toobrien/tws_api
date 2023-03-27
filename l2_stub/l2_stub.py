@@ -7,7 +7,7 @@ from json               import loads
 from instruments        import INSTRUMENTS
 
 
-TWS_CONFIG  = loads(open("../tws_config.json", "r").read())
+TWS_CONFIG  = loads(open("./config.json", "r").read())
 L2_HANDLES  = {}
 
 
@@ -19,6 +19,20 @@ def l2_stream_handler(args):
     print(instrument_id, args)
 
 
+async def main(fc: fclient):
+
+    # fc.set_market_data_type(4) // for frozen data when market is closed
+
+    fc.set_l2_stream_handler(l2_stream_handler)
+
+    for instrument_id in INSTRUMENTS:
+
+        handle = await fc.open_l2_stream(instrument_id, 10)
+
+        L2_HANDLES[handle] = instrument_id
+
+        #fc.close_l2_stream(handle)
+
 if __name__ == "__main__":
 
     fc = fclient(
@@ -27,17 +41,7 @@ if __name__ == "__main__":
         id      = TWS_CONFIG["client_id"]
     )
 
-    # fc.set_market_data_type(4) // for frozen data when market is closed
+    loop = fc.get_loop()
 
-    fc.set_l2_stream_handler(l2_stream_handler)
-
-    for instrument_id in INSTRUMENTS:
-
-        handle = fc.open_l2_stream(instrument_id, 10)
-
-        L2_HANDLES[handle] = instrument_id
-
-        #fc.close_l2_stream(handle)
-
-    pass
+    loop.run_until_complete(main(fc))
 
