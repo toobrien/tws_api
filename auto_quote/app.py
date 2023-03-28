@@ -27,6 +27,7 @@ def error_handler(reqId, errorCode, errorString, advancedOrderRejectJson = ""):
 
     # connection and market data related errors
 
+    '''
     if errorCode == 109:
 
         # Price is out of the range defined by the Percentage setting at order defaults frame. The order will not be transmitted. 
@@ -290,6 +291,7 @@ def error_handler(reqId, errorCode, errorString, advancedOrderRejectJson = ""):
         # OrderId <OrderId> that needs to be cancelled can not be cancelled, state:
 
         pass
+    '''
 
     # print message
 
@@ -521,8 +523,6 @@ async def quote_continuously(
             await sleep(update_interval)
             await fc.get_open_orders()
 
-        pass
-
 
 ##################
 ## MAIN PROGRAM ##
@@ -533,7 +533,7 @@ async def main(fc: fclient):
 
     fc.set_error_handler(error_handler)
     fc.set_l1_stream_handler(l1_stream_handler)
-    fc.set_open_order_handler(open_order_handler)
+    #fc.set_open_order_handler(open_order_handler)
     fc.set_order_status_handler(order_status_handler)
    
     await gather(*[ quote_continuously(fc, **qdef) for qdef in QUOTE_DEFS ])
