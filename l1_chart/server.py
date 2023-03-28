@@ -56,7 +56,7 @@ def get_root():
 
 def error_handler(reqId, errorCode, errorString, advancedOrderRejectJson = ""):
 
-    if advancedOrderRejectJson != "":
+    if advancedOrderRejectJson == "":
 
         print(f"reqId: {reqId}\tcode: {errorCode}\tmsg: {errorString}")
 

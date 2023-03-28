@@ -12,10 +12,9 @@ from ibapi.contract import ComboLeg, Contract
 from ibapi.order    import Order
 from ibapi.ticktype import TickTypeEnum
 from ibapi.wrapper  import EWrapper
-from pytz           import timezone
 from .structs       import instrument, month_codes
 from threading      import get_ident, Thread
-from time           import sleep, time
+from time           import sleep
 
 
 # sleep before any call to EClient
@@ -863,7 +862,7 @@ class fclient(wrapper, EClient):
                             "stop_loss_id":     None
                         }
         bracket         = []
-        alert_strings   = [ "async_client.submit_order" ]
+        alert_strings   = [ "fclient.submit_order" ]
 
         if con and parent_id:
 
