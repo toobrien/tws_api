@@ -13,7 +13,7 @@ QUOTE_DEFS = [
         "enabled":          True,
         "max_worsening":    0.0020,
         "profit_taker_amt": 0.0030,
-        "stop_loss_amt":    -0.080,
+        "stop_loss_amt":    -0.0080,
         "inactive_hours":   [ ( "05:30:00", "13:00:00" ) ]
     },
     {
